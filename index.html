@@ -32,12 +32,16 @@
 
     <!-- 上側の対局者 -->
     <div class="player-bar" id="barWhite">
-      <div class="avatar gote" id="avatarWhite"></div>
+      <div class="avatar" id="avatarWhite"></div>
       <div class="pcol">
-        <div class="pname">
-          <span id="nameWhite">後手</span>
+        <div class="pname"><span id="nameWhite">後手</span></div>
+        <div class="pmeta">
+          <span class="side-badge" id="sideWhite">後手</span>
           <span class="who" id="whoWhite"></span>
         </div>
+      </div>
+      <div class="hand-box">
+        <div class="hand-cap">持駒</div>
         <div class="hand gote" id="handWhite"></div>
       </div>
       <div class="clock-box">
@@ -56,12 +60,16 @@
 
     <!-- 下側の対局者 -->
     <div class="player-bar" id="barBlack">
-      <div class="avatar sente" id="avatarBlack"></div>
+      <div class="avatar" id="avatarBlack"></div>
       <div class="pcol">
-        <div class="pname">
-          <span id="nameBlack">先手</span>
+        <div class="pname"><span id="nameBlack">先手</span></div>
+        <div class="pmeta">
+          <span class="side-badge" id="sideBlack">先手</span>
           <span class="who" id="whoBlack"></span>
         </div>
+      </div>
+      <div class="hand-box">
+        <div class="hand-cap">持駒</div>
         <div class="hand sente" id="handBlack"></div>
       </div>
       <div class="clock-box">
@@ -80,8 +88,8 @@
     <div class="eval-wrap" id="evalWrap">
       <div class="eval-row">
         <span class="eval-cap">形勢</span>
-        <div class="eval-bar">
-          <div class="fill" id="evalFill"></div>
+        <div class="eval-track">
+          <div class="eval-bar"><div class="fill" id="evalFill"></div></div>
           <div class="marker" id="evalMarker"></div>
         </div>
         <span class="eval-num" id="evalText">±0</span><span class="eval-word" id="evalWord"></span>

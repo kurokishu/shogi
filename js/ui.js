@@ -130,7 +130,8 @@
       any = true;
       var sel = state.selHand && state.selHand.side === side && state.selHand.pt === pt;
       html += '<div class="hand-piece' + (sel ? ' sel' : '') + '" data-side="' + side + '" data-pt="' + pt + '">' +
-        S.PIECE_CHAR[pt] + (n > 1 ? '<span class="cnt">' + n + '</span>' : '') + '</div>';
+        '<span class="hp-face">' + S.PIECE_CHAR[pt] + '</span>' +
+        (n > 1 ? '<span class="cnt">' + n + '</span>' : '') + '</div>';
     }
     if (!any) html = '<span class="empty">持駒なし</span>';
     box.innerHTML = html;

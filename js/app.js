@@ -239,15 +239,22 @@
     var timed = !!(RULES.time || RULES.byoyomi);
     map.forEach(function (o) {
       var p = P(o.side);
-      $(o.name).textContent = (o.side > 0 ? '▲' : '△') + p.name;
-      // 種別とレーティングの目安
-      var sub = p.type === 'cp' ? E.level(p.level).name + '・R' + E.level(p.level).rating : '人';
-      if (p.type !== 'cp') {
-        var st = loadRating();
-        if (st && st.rating && p.name.indexOf('あなた') >= 0) sub = '人・R' + st.rating;
+      // 名前（CPは強さの呼称、人は入力された名前）
+      $(o.name).textContent = p.type === 'cp' ? E.level(p.level).name : p.name;
+      // 先手／後手のピル
+      var sb = $(o.bar === 'barBlack' ? 'sideBlack' : 'sideWhite');
+      if (sb) {
+        sb.textContent = o.side > 0 ? '先手' : '後手';
+        sb.className = 'side-badge ' + (o.side > 0 ? 'sente' : 'gote');
       }
-      $(o.who).textContent = '（' + sub + '）';
-      if ($(o.av)) $(o.av).className = 'avatar' + (o.side > 0 ? ' sente' : ' gote');
+      // レーティング
+      var rate = '';
+      if (p.type === 'cp') rate = 'R ' + E.level(p.level).rating;
+      else {
+        var st = loadRating();
+        rate = (st && st.rating && p.name.indexOf('あなた') >= 0) ? 'R ' + st.rating : '';
+      }
+      $(o.who).textContent = rate;
 
       var cl = $(o.clock);
       cl.textContent = clockText(o.side);
@@ -430,7 +437,11 @@
       mine = isMyTurnView();
       if (mine) s = '<b style="color:var(--good)">あなたの番です</b>';
       else if (G.thinking) s = (G.pos.side > 0 ? '先手' : '後手') + 'が考えています <span class="thinking"><i></i><i></i><i></i></span>';
-      else s = (G.pos.side > 0 ? '▲先手' : '△後手') + '（' + P(G.pos.side).name + '）の手番';
+      else {
+        var pn = P(G.pos.side), lbl = G.pos.side > 0 ? '▲先手' : '△後手';
+        var nm = pn.type === 'cp' ? E.level(pn.level).name : pn.name;
+        s = lbl + (nm && nm !== '先手' && nm !== '後手' ? '（' + nm + '）' : '') + 'の手番';
+      }
       if (G.pos.inCheck()) s = '<b>王手！</b> ' + s;
       // 直前の手を文字で出す
       if (G.moves.length) {
