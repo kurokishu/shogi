@@ -67,15 +67,15 @@
    */
   var LEVELS = [
     { id: 1, name: 'アマ入門', note: '駒の取り合いが分かる程度。かなり見落とす', bookPly: 4, depth: 1, time: 50, temp: 900, blunder: 0.30, rating: 150 },
-    { id: 2, name: 'アマ初級', note: '1手先は見る。大きな見落ちがときどき出る', bookPly: 8, depth: 1, time: 120, temp: 550, blunder: 0.18, rating: 500 },
-    { id: 3, name: 'アマ中級', note: '駒の損得に敏感。簡単な詰みは見える', bookPly: 12, depth: 2, time: 250, temp: 380, blunder: 0.10, rating: 800 },
-    { id: 4, name: 'アマ上級', note: '囲いを作り、寄せの形が分かる', bookPly: 16, depth: 3, time: 450, temp: 240, blunder: 0.05, rating: 1100 },
-    { id: 5, name: 'アマ有段者', note: '中盤で大きく間違えない', bookPly: 20, depth: 4, time: 800, temp: 150, blunder: 0.025, rating: 1350 },
-    { id: 6, name: 'アマ強豪', note: '終盤が正確。緩手を突いてくる', bookPly: 24, depth: 5, time: 1300, temp: 90, blunder: 0.010, rating: 1700 },
-    { id: 7, name: 'アマトップ', note: '県代表クラス。ほぼ間違えない', bookPly: 999, depth: 6, time: 2000, temp: 50, blunder: 0.004, rating: 2200 },
-    { id: 8, name: 'プロ', note: '深く読む。少しの緩みも見逃さない', bookPly: 999, depth: 7, time: 3000, temp: 22, blunder: 0.0015, rating: 2500 },
-    { id: 9, name: 'プロトップ', note: 'タイトル保持者クラスを想定', bookPly: 999, depth: 8, time: 4500, temp: 8, blunder: 0, rating: 2750 },
-    { id: 10, name: '電脳戦', note: 'プロ以上。手加減なしの全力（時間も長い）', bookPly: 999, depth: 12, time: 7000, temp: 0, blunder: 0, rating: 3000 }
+    { id: 2, name: 'アマ初級', note: '1手先は見る。大きな見落ちがときどき出る', bookPly: 8, depth: 2, time: 200, temp: 550, blunder: 0.18, rating: 500 },
+    { id: 3, name: 'アマ中級', note: '駒の損得に敏感。簡単な詰みは見える', bookPly: 12, depth: 3, time: 400, temp: 360, blunder: 0.10, rating: 800 },
+    { id: 4, name: 'アマ上級', note: '囲いを作り、寄せの形が分かる', bookPly: 16, depth: 4, time: 700, temp: 200, blunder: 0.05, rating: 1100 },
+    { id: 5, name: 'アマ有段者', note: '6手先まで読む。中盤で大きく間違えない', bookPly: 20, depth: 6, time: 1500, temp: 120, blunder: 0.020, rating: 1400 },
+    { id: 6, name: 'アマ強豪', note: '7手先。終盤が正確で、緩手を突いてくる', bookPly: 24, depth: 7, time: 2500, temp: 0, blunder: 0.008, rating: 1750 },
+    { id: 7, name: 'アマトップ', note: '8手先。県代表クラスを想定。ほぼ間違えない', bookPly: 999, depth: 8, time: 4000, temp: 0, blunder: 0.003, rating: 2100 },
+    { id: 8, name: 'プロ', note: '9手先。少しの緩みも見逃さない', bookPly: 999, depth: 9, time: 6000, temp: 0, blunder: 0.001, rating: 2400 },
+    { id: 9, name: 'プロトップ', note: '10手先。手加減は入れていない', bookPly: 999, depth: 10, time: 9000, temp: 0, blunder: 0, rating: 2650 },
+    { id: 10, name: '電脳戦', note: '12手先。全力。1手に10秒以上かかることがある', bookPly: 999, depth: 12, time: 14000, temp: 0, blunder: 0, rating: 2900 }
   ];
   function level(id) { return LEVELS[Math.max(1, Math.min(LEVELS.length, id | 0)) - 1]; }
 
@@ -471,6 +471,9 @@
     var results = [];
     for (var i = 0; i < roots.length; i++) results.push({ m: roots[i], score: -INF });
 
+    /* 手をばらつかせないレベルは、枝刈りを効かせて深く読む */
+    var fastRoot = (lv.temp < 100) || !!opt.deterministic;
+
     var completed = 0, bestPv = [], bestScore = 0;
     for (var d = 1; d <= maxDepth; d++) {
       var best = -INF, bestMove = 0;
@@ -479,11 +482,26 @@
         pos.doMove(rm.m);
         var sc;
         if (r === 0) {
+          rm.exact = true;
           sc = -alphabeta(pos, d - 1, -INF, INF, 1, true);
+        } else if (fastRoot) {
+          /* 上位レベル：ここまでの最善を基準に枝刈りする（本来のPVS）。
+           * 最善に届かない手は途中で打ち切られるので、同じ時間でずっと深く読める。
+           * ただし打ち切った手の評価値は概算値になるため、
+           * 「ばらつかせる選択」には使わない（exact フラグで区別する）。 */
+          rm.exact = false;
+          sc = -alphabeta(pos, d - 1, -best - 1, -best, 1, true);
+          if (sc > best) {
+            sc = -alphabeta(pos, d - 1, -INF, -best, 1, true);
+            rm.exact = true;
+          }
         } else {
-          var lo = best - 420;
-          sc = -alphabeta(pos, d - 1, -INF, -lo, 1, true);
-          if (sc > lo && d >= 2) sc = -alphabeta(pos, d - 1, -INF, INF, 1, true);
+          /* 下位レベル：手をばらつかせるために、僅差の手の評価値も必要。
+           * 幅を持たせて探索する（そのぶん遅いが、浅いので影響は小さい） */
+          rm.exact = true;
+          var lo = best - Math.max(300, lv.temp * 3);   // ばらつき選択に使う範囲は正確に読む
+          sc = -alphabeta(pos, d - 1, -lo - 1, -lo, 1, true);
+          if (sc > lo) sc = -alphabeta(pos, d - 1, -INF, -lo, 1, true);
         }
         pos.undoMove();
         if (stopped) break;
@@ -518,7 +536,8 @@
       completed = 1; bestScore = results[0].score;
     }
 
-    var chosen = opt.deterministic ? results[0].m : pickMove(results, lv, opt.rng || Math.random, pos.ply, pos);
+    var chosen = opt.deterministic ? results[0].m
+      : pickMove(results, lv, opt.rng || Math.random, pos.ply, pos, !fastRoot);
     return {
       move: chosen, best: results[0].m, score: bestScore, depth: completed, seldepth: seldepth,
       nodes: nodes, time: now() - startTime, pv: bestPv,
@@ -551,8 +570,25 @@
   }
 
   /* 強さレベルに応じた手の選び方（弱いレベルはわざと精度を落とす） */
-  function pickMove(results, lv, rng, ply, pos) {
+  function pickMove(results, lv, rng, ply, pos, scoresExact) {
     if (results.length === 1) return results[0].m;
+
+    /* 評価値が概算のとき（上位レベル）は、ばらつき選択を行わない。
+     * 代わりに「全幅で読んで最善と互角だった手」の中からだけ選び、
+     * 強さを落とさずに毎回同じ将棋にならないようにする。 */
+    if (!scoresExact) {
+      if (lv.blunder > 0 && rng() < lv.blunder * (ply < 16 ? 0.35 : 1)) {
+        var bk = Math.floor(rng() * results.length);
+        if (results[bk].score > -MATE + 300) return results[bk].m;
+      }
+      var top = results[0].score, tie = [];
+      for (var t2 = 0; t2 < results.length; t2++) {
+        if (results[t2].exact && top - results[t2].score <= 10) tie.push(results[t2]);
+      }
+      if (tie.length <= 1) return results[0].m;
+      return tie[Math.floor(rng() * tie.length)].m;
+    }
+
     var opening = ply < 16;
     if (opening && pos) {
       // 序盤の手らしさを score に織り込んでから選ぶ
