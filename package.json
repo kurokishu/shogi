@@ -1,0 +1,17 @@
+{
+  "name": "shogi-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ブラウザで動く将棋アプリ（対CP・2台対戦・棋譜解析・段位測定）",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/perft.js 4 && node test/rules-test.js && node test/kifu-test.js && node test/engine-test.js",
+    "book": "node tools/build-book.js 1800 42 && node tools/refine-book.js 10 7 && node tools/prune-book.js 2 8",
+    "icons": "node tools/make-icons.js"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,17 @@
+{
+  "name": "将棋 — 対CP・観戦・対人・棋譜解析・段位測定",
+  "short_name": "将棋",
+  "description": "コンピュータ対局・2台対戦・棋譜解析・段位測定ができる将棋アプリ。インストール後はオフラインでも遊べます。",
+  "lang": "ja",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#14161c",
+  "theme_color": "#14161c",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

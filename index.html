@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#14161c">
+<title>将棋 — 対CP・観戦・対人・棋譜解析・段位測定</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="将棋">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="top">
+  <h1>将棋<span class="sub">対CP / 観戦 / 対人 / 棋譜解析 / 段位測定</span></h1>
+  <div class="grow"></div>
+  <div class="badge" id="engineBadge">エンジン起動中…</div>
+  <div class="badge" id="offlineBadge">オフライン確認中…</div>
+  <div class="badge" id="myRankBadge">棋力：未測定</div>
+</header>
+
+<main class="layout">
+
+  <!-- ============== 盤 ============== -->
+  <section class="board-pane">
+    <div class="player-bar" id="barWhite">
+      <div class="turn-dot"></div>
+      <div class="name" id="nameWhite">後手</div>
+      <div class="who" id="whoWhite"></div>
+      <div class="clock" id="clockWhite">0:00</div>
+    </div>
+    <div class="hand gote" id="handWhite"></div>
+
+    <div class="board-grid-wrap">
+      <div class="file-labels" id="fileLabels"></div>
+      <div></div>
+      <div class="board" id="board"></div>
+      <div class="rank-labels" id="rankLabels"></div>
+    </div>
+
+    <div class="hand sente" id="handBlack"></div>
+    <div class="player-bar" id="barBlack">
+      <div class="turn-dot"></div>
+      <div class="name" id="nameBlack">先手</div>
+      <div class="who" id="whoBlack"></div>
+      <div class="clock" id="clockBlack">0:00</div>
+    </div>
+
+    <div class="eval-wrap">
+      <div class="eval-bar"><div class="fill" id="evalFill"></div><div class="mid"></div></div>
+      <div class="eval-labels">
+        <span>後手優勢</span>
+        <span id="evalText">評価値 <b>±0</b></span>
+        <span>先手優勢</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============== サイド ============== -->
+  <div class="side">
+
+    <div class="card">
+      <nav class="tabs" id="tabs">
+        <button data-tab="play" class="on">対CP戦</button>
+        <button data-tab="cpcp">CP対CP</button>
+        <button data-tab="human">対人戦</button>
+        <button data-tab="net">2台で対戦</button>
+        <button data-tab="rank">段位測定</button>
+        <button data-tab="kifu">棋譜・解析</button>
+      </nav>
+
+      <!-- 対CP戦 -->
+      <div class="panel on" id="panel-play">
+        <div class="row">
+          <label>あなたの手番</label>
+          <div class="row seg" style="flex:1;margin:0">
+            <div class="seg-btn on" data-myside="1">先手</div>
+            <div class="seg-btn" data-myside="-1">後手</div>
+            <div class="seg-btn" data-myside="0">ランダム</div>
+          </div>
+        </div>
+        <div class="row">
+          <label>CPの強さ</label>
+          <select id="cpLevel"></select>
+        </div>
+        <div class="hint" id="cpLevelNote"></div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn primary wide" id="btnStartPlay">この設定で対局開始</button>
+        </div>
+        <div class="hint">
+          「待った」「ヒント」は自由に使えます（段位測定中は使えません）。
+        </div>
+      </div>
+
+      <!-- CP対CP -->
+      <div class="panel" id="panel-cpcp">
+        <div class="row"><label>先手 CP</label><select id="cpLevelB"></select></div>
+        <div class="row"><label>後手 CP</label><select id="cpLevelW"></select></div>
+        <div class="row">
+          <label>指す間隔</label>
+          <input type="range" id="cpSpeed" min="0" max="2000" step="100" value="400" style="flex:1">
+          <span class="hint" id="cpSpeedVal">0.4秒</span>
+        </div>
+        <div class="btn-grid" style="margin-top:8px">
+          <button class="btn primary" id="btnCpStart">観戦開始</button>
+          <button class="btn" id="btnCpPause">一時停止</button>
+          <button class="btn" id="btnCpStep">1手進める</button>
+        </div>
+        <div class="hint" style="margin-top:8px">
+          強さの差を作ると学習になります。例：先手「電脳戦」×後手「アマ上級」。
+        </div>
+      </div>
+
+      <!-- 対人戦 -->
+      <div class="panel" id="panel-human">
+        <div class="row"><label>先手の名前</label><input type="text" id="nameInB" value="先手" maxlength="12"></div>
+        <div class="row"><label>後手の名前</label><input type="text" id="nameInW" value="後手" maxlength="12"></div>
+        <div class="row">
+          <label>盤の向き</label>
+          <div class="row seg" style="flex:1;margin:0">
+            <div class="seg-btn on" data-autoflip="0">固定</div>
+            <div class="seg-btn" data-autoflip="1">手番で自動反転</div>
+          </div>
+        </div>
+        <button class="btn primary wide" id="btnStartHuman">対人戦を開始</button>
+        <div class="hint" style="margin-top:8px">
+          1台の端末を交代で使う形式です。2台のスマホで指したいときは「2台で対戦」タブへ。
+        </div>
+      </div>
+
+      <!-- 2台で対戦 -->
+      <div class="panel" id="panel-net">
+        <div id="netOffline" class="notice" style="display:none">
+          いまは対戦サーバーにつながっていません。<br>
+          ・家のPCで <b>start.command</b> を起動して、そのアドレスを開く<br>
+          ・または下の「対戦サーバー」に、置いてあるサーバーのURLを入れる<br>
+          （1人用の対局・解析・段位測定は、このままでも使えます）
+        </div>
+        <div class="row">
+          <label>対戦サーバー</label>
+          <input type="text" id="netServer" placeholder="空欄＝いま開いているサーバー" inputmode="url">
+          <button class="btn" id="btnNetServerSave">保存</button>
+        </div>
+        <div id="netSetup">
+          <div class="hint" id="netUrls" style="margin-bottom:10px"></div>
+          <div class="row"><label>あなたの名前</label><input type="text" id="netName" value="対局者" maxlength="12"></div>
+          <div class="row">
+            <label>部屋を作る</label>
+            <div class="row seg" style="flex:1;margin:0">
+              <div class="seg-btn" data-netside="1">先手</div>
+              <div class="seg-btn" data-netside="-1">後手</div>
+              <div class="seg-btn on" data-netside="0">おまかせ</div>
+            </div>
+          </div>
+          <button class="btn primary wide" id="btnNetCreate">部屋を作る</button>
+          <div class="row" style="margin-top:12px">
+            <label>参加する</label>
+            <input type="text" id="netRoom" placeholder="部屋番号（4桁）" maxlength="4" inputmode="numeric">
+            <button class="btn" id="btnNetJoin">参加</button>
+          </div>
+        </div>
+        <div id="netActive" style="display:none">
+          <div class="rank-result" style="padding:8px">
+            <div class="big" id="netRoomNo">----</div>
+            <div class="r">この番号をもう1台の端末で入力してください</div>
+          </div>
+          <div class="hint" id="netStatus" style="margin:8px 0"></div>
+          <div class="btn-grid two">
+            <button class="btn" id="btnNetLeave">対戦をやめる</button>
+            <button class="btn" id="btnNetCopy">URLをコピー</button>
+          </div>
+        </div>
+        <div class="hint" style="margin-top:10px">
+          同じWi-Fiにつないだ2台で遊べます。片方が「部屋を作る」→もう片方が部屋番号で「参加」。
+          途中で画面を閉じても、同じ端末で開き直せば続きから指せます。
+        </div>
+      </div>
+
+      <!-- 段位測定 -->
+      <div class="panel" id="panel-rank">
+        <div class="rank-result" id="rankResult">
+          <div class="big" id="rankBig">未測定</div>
+          <div class="r" id="rankSub">CPと対局して棋力を推定します</div>
+        </div>
+        <div class="game-dots" id="rankDots"></div>
+        <div class="row">
+          <label>測定局数</label>
+          <div class="row seg" style="flex:1;margin:0">
+            <div class="seg-btn" data-rankgames="3">3局</div>
+            <div class="seg-btn on" data-rankgames="5">5局</div>
+            <div class="seg-btn" data-rankgames="7">7局</div>
+          </div>
+        </div>
+        <div class="btn-grid two">
+          <button class="btn primary" id="btnRankStart">測定を開始</button>
+          <button class="btn danger" id="btnRankReset">記録をリセット</button>
+        </div>
+        <div class="hint" style="margin-top:10px">
+          勝敗に応じて相手の強さが自動で上下し、イロレーティングで棋力を推定します。
+          測定中は「待った」「ヒント」は使えません。<br>
+          棋譜解析からも「1手の精度」による推定ができます（棋譜・解析タブ）。
+        </div>
+        <div class="hint" id="rankHistory" style="margin-top:8px"></div>
+      </div>
+
+      <!-- 棋譜・解析 -->
+      <div class="panel" id="panel-kifu">
+        <div class="row">
+          <label>解析の深さ</label>
+          <div class="row seg" style="flex:1;margin:0">
+            <div class="seg-btn" data-adepth="250">軽い</div>
+            <div class="seg-btn on" data-adepth="700">標準</div>
+            <div class="seg-btn" data-adepth="1800">じっくり</div>
+          </div>
+        </div>
+        <div class="btn-grid two">
+          <button class="btn primary" id="btnAnalyze">この棋譜を解析</button>
+          <button class="btn" id="btnAnalyzeStop" disabled>中止</button>
+        </div>
+        <div class="progress" style="margin-top:8px"><div id="analyzeProg"></div></div>
+        <div id="analyzeOut"></div>
+
+        <h2 style="margin-top:16px">棋譜の保存・読み込み</h2>
+        <div class="btn-grid two">
+          <button class="btn" id="btnSaveKifu">この対局を保存</button>
+          <button class="btn" id="btnExportKif">KIFで書き出し</button>
+          <button class="btn" id="btnImportKif">KIF/SFENを読み込む</button>
+          <button class="btn" id="btnCopySfen">SFENをコピー</button>
+        </div>
+        <div class="list-box" id="kifuList" style="margin-top:8px"></div>
+      </div>
+    </div>
+
+    <!-- エンジン情報 -->
+    <div class="card">
+      <h2>エンジン情報</h2>
+      <div class="engine-info">
+        <div class="kv"><span>状態</span><b id="engState">待機中</b></div>
+        <div class="kv"><span>深さ</span><b id="engDepth">-</b></div>
+        <div class="kv"><span>探索</span><b id="engNodes">-</b></div>
+        <div class="kv"><span>評価値</span><b id="engScore">-</b></div>
+        <div class="kv"><span>読み筋</span><span class="pv" id="engPv">-</span></div>
+      </div>
+    </div>
+
+    <!-- 棋譜 -->
+    <div class="card">
+      <h2>棋譜 <span class="hint" id="kifuCount"></span></h2>
+      <div class="move-list" id="moveList"></div>
+      <div class="nav-row">
+        <button class="btn" id="btnFirst" title="開始局面">|◀</button>
+        <button class="btn" id="btnPrev" title="1手戻す">◀</button>
+        <button class="btn" id="btnNext" title="1手進める">▶</button>
+        <button class="btn" id="btnLast" title="最終局面">▶|</button>
+      </div>
+    </div>
+
+    <!-- 操作 -->
+    <div class="card">
+      <h2>操作</h2>
+      <div class="btn-grid">
+        <button class="btn" id="btnUndo">待った</button>
+        <button class="btn" id="btnHint">ヒント</button>
+        <button class="btn" id="btnFlip">盤を反転</button>
+        <button class="btn" id="btnJishogi">持将棋判定</button>
+        <button class="btn" id="btnDeclare">入玉宣言</button>
+        <button class="btn danger" id="btnResign">投了</button>
+      </div>
+      <div class="btn-grid" style="margin-top:6px">
+        <button class="btn" id="btnNew">新規対局</button>
+      </div>
+      <div class="hint" id="statusLine" style="margin-top:8px"></div>
+    </div>
+
+    <!-- ルール設定 -->
+    <div class="card">
+      <h2>ルール（アマチュア大会に準拠）</h2>
+      <div class="row">
+        <label>二歩・打ち歩詰め</label>
+        <div class="row seg" style="flex:1;margin:0">
+          <div class="seg-btn on" data-foul="1">反則負け</div>
+          <div class="seg-btn" data-foul="0">指せない</div>
+        </div>
+      </div>
+      <div class="row">
+        <label>持ち時間</label>
+        <div class="row seg" style="flex:1;margin:0">
+          <div class="seg-btn on" data-tc="0">なし</div>
+          <div class="seg-btn" data-tc="600">10分</div>
+          <div class="seg-btn" data-tc="1500">25分</div>
+          <div class="seg-btn" data-tc="900:30">15分+秒読み30秒</div>
+        </div>
+      </div>
+      <div class="row">
+        <label>手数上限</label>
+        <div class="row seg" style="flex:1;margin:0">
+          <div class="seg-btn on" data-maxmoves="256">256手</div>
+          <div class="seg-btn" data-maxmoves="320">320手</div>
+          <div class="seg-btn" data-maxmoves="500">500手</div>
+        </div>
+      </div>
+      <div class="hint">
+        ・<b>二歩／打ち歩詰め</b>は「反則負け」だと実戦どおり<b>指せてしまい、指した時点で負け</b>です。
+        緑の印は合法手だけに出るので、印の無いマスに置いた場合は反則になります<br>
+        ・<b>行き所のない駒</b>（1段目の歩・香、1〜2段目の桂）と<b>王手放置</b>は、誤操作を防ぐため最初から指せません<br>
+        ・<b>持ち時間</b>を設定すると、使い切った時点で負け（秒読みつきなら1手ごとにリセット）<br>
+        ・<b>千日手</b>は引き分け、<b>連続王手の千日手</b>は王手を続けた側の負け<br>
+        ・<b>双方入玉</b>したら「持将棋判定」で24点法（飛角＝5点、他＝1点。双方24点以上で引き分け）<br>
+        ・手数上限に達したら、双方入玉なら24点法、そうでなければ引き分け
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer class="foot">
+  ローカル完結・通信なし。棋譜はこのブラウザ内（localStorage）に保存されます。
+</footer>
+
+<!-- 成り確認 -->
+<div class="overlay" id="promoOverlay">
+  <div class="modal">
+    <h3>成りますか？</h3>
+    <div class="promo-choices" id="promoChoices"></div>
+    <div class="actions"><button class="btn" id="promoCancel">やめる</button></div>
+  </div>
+</div>
+
+<!-- 汎用ダイアログ -->
+<div class="overlay" id="msgOverlay">
+  <div class="modal">
+    <h3 id="msgTitle">お知らせ</h3>
+    <p id="msgBody"></p>
+    <div class="actions" id="msgActions"></div>
+  </div>
+</div>
+
+<!-- テキスト入出力 -->
+<div class="overlay" id="textOverlay">
+  <div class="modal">
+    <h3 id="textTitle">棋譜</h3>
+    <p id="textDesc"></p>
+    <textarea id="textArea" spellcheck="false"></textarea>
+    <div class="actions" id="textActions"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/book.js"></script>
+<script src="js/shogi.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/kifu.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+# Render に置くときの設定（Blueprint）
+# これがあると、Render 側で項目を手入力しなくて済みます。
+# うまく読み込まれない場合は、Web Service を手動で作り
+#   Build Command : （空欄）
+#   Start Command : node server.js
+#   Instance Type : Free
+# と入れれば同じです。
+services:
+  - type: web
+    name: shogi
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /api/info
+    autoDeploy: true
