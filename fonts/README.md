@@ -6,7 +6,8 @@
 
 | ファイル | 元のフォント | 作者 | 字形 |
 |---|---|---|---|
-| `koma-kaisho.woff2` | Klee One SemiBold | Fontworks Inc. | 楷書寄りの教科書体 |
+| `koma-kaisho-r.woff2` | Klee One Regular | Fontworks Inc. | 楷書寄りの教科書体（既定・細身） |
+| `koma-kaisho.woff2` | Klee One SemiBold | Fontworks Inc. | 同上（太め） |
 | `koma-brush.woff2` | Yuji Syuku | Kanji Yuji | 毛筆（楷書） |
 
 ライセンス全文は `OFL-KleeOne.txt` / `OFL-YujiSyuku.txt` を参照してください。

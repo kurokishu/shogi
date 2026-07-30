@@ -5,6 +5,11 @@
    ========================================================================== */
 @font-face {
   font-family: "KomaKaisho";
+  src: url("../fonts/koma-kaisho-r.woff2") format("woff2");
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "KomaKaisho";
   src: url("../fonts/koma-kaisho.woff2") format("woff2");
   font-weight: 600; font-style: normal; font-display: swap;
 }
@@ -54,8 +59,8 @@
   --font: var(--font-ui);
   /* 駒の書体（既定：楷書）。data-koma で切り替える */
   --font-koma: "KomaKaisho", "Hiragino Mincho ProN", serif;
-  --koma-weight: 600;
-  --koma-size: .70;
+  --koma-weight: 400;
+  --koma-size: .58;
 }
 
 :root[data-theme="dark"] {
@@ -120,18 +125,11 @@ main.layout {
   transition: border-color .15s, background .15s;
 }
 .player-bar .avatar {
-  width: 32px; height: 32px; flex: none; border-radius: 8px;
-  background: var(--bg); border: 1px solid var(--line);
-  position: relative; overflow: hidden;
+  width: 26px; height: 29px; flex: none;
+  background-image: url("../img/koma.png"); background-size: 100% 100%;
+  position: relative;
 }
-.player-bar .avatar::before {          /* 頭 */
-  content: ''; position: absolute; left: 50%; top: 6px; width: 11px; height: 11px;
-  border-radius: 50%; background: var(--fg-dim); opacity: .55; transform: translateX(-50%);
-}
-.player-bar .avatar::after {           /* 肩 */
-  content: ''; position: absolute; left: 50%; bottom: -8px; width: 22px; height: 18px;
-  border-radius: 50% 50% 0 0; background: var(--fg-dim); opacity: .55; transform: translateX(-50%);
-}
+
 .player-bar .pcol { flex: 1 1 auto; min-width: 80px; }
 .player-bar .pname {
   display: flex; align-items: baseline; gap: 6px;
@@ -172,13 +170,13 @@ main.layout {
 }
 .hand-piece .hp-face {
   display: flex; align-items: center; justify-content: center;
-  width: 25px; height: 29px;
-  background: var(--piece-bg); color: var(--piece-fg);
-  clip-path: polygon(50% 0%, 86% 14%, 95% 100%, 5% 100%, 14% 14%);
+  width: 25px; height: 29px; padding-top: 6%;
+  background-image: url("../img/koma.png"); background-size: 100% 100%;
+  color: #2a1c0a;
   font-family: var(--font-koma); font-weight: var(--koma-weight);
   font-size: calc(29px * var(--koma-size));
 }
-.hand.gote .hand-piece .hp-face { background: var(--piece-bg2); }
+.hand.gote .hand-piece .hp-face { background-image: url("../img/koma-gote.png"); }
 .hand-piece.sel .hp-face { box-shadow: 0 0 0 3px var(--sel); filter: brightness(1.06); }
 .hand-piece .cnt {
   position: absolute; right: 0; bottom: 0; line-height: 1;
@@ -198,17 +196,16 @@ main.layout {
   display: grid;
   grid-template-columns: repeat(9, var(--cell));
   grid-template-rows: repeat(9, var(--cell));
-  background:
-    repeating-linear-gradient(90deg, rgba(0, 0, 0, .035) 0 2px, transparent 2px 9px),
-    linear-gradient(160deg, var(--board) 0%, var(--board2) 100%);
-  border: 3px solid var(--board-edge);
-  border-radius: 4px;
-  box-shadow: var(--shadow);
+  background-image: url("../img/board.png");
+  background-size: 100% 100%;
+  border: 2px solid #7a5427;
+  border-radius: 2px;
+  box-shadow: 0 0 0 4px #916336, 0 6px 14px rgba(60, 40, 15, .28);
 }
 .cell {
   position: relative;
-  border-right: 1px solid rgba(138, 98, 56, .55);
-  border-bottom: 1px solid rgba(138, 98, 56, .55);
+  border-right: 1px solid rgba(74, 47, 16, .48);
+  border-bottom: 1px solid rgba(74, 47, 16, .48);
   display: flex; align-items: center; justify-content: center;
   cursor: pointer;
 }
@@ -229,17 +226,18 @@ main.layout {
 }
 .piece {
   position: relative; z-index: 2;
-  width: 94%; height: 96%;
+  width: 92%; height: 96%;
   display: flex; align-items: center; justify-content: center;
-  background: var(--piece-bg); color: var(--piece-fg);
-  clip-path: polygon(50% 0%, 86% 14%, 95% 100%, 5% 100%, 14% 14%);
+  background-image: url("../img/koma.png");
+  background-size: 100% 100%; background-repeat: no-repeat;
+  color: #2a1c0a;
   font-family: var(--font-koma);
   font-weight: var(--koma-weight); font-size: calc(var(--cell) * var(--koma-size));
-  line-height: 1; letter-spacing: 0;
-  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, .26));
+  line-height: 1; letter-spacing: 0; padding-top: 6%;
+  filter: drop-shadow(0 1px 1.2px rgba(50, 33, 10, .3));
 }
 /* 相手（盤の上側）の駒は180度回し、色も少し落とす */
-.piece.upside { transform: rotate(180deg); background: var(--piece-bg2); }
+.piece.upside { transform: rotate(180deg); background-image: url("../img/koma-gote.png"); }
 .piece.promo { color: var(--piece-promo); }
 .piece.small { font-size: calc(var(--cell) * .42); }
 
@@ -468,9 +466,8 @@ main.layout {
 }
 .promo-choices button:hover { border-color: var(--accent); }
   width: 46px; height: 50px; display: flex; align-items: center; justify-content: center;
-  background: var(--piece-bg); color: var(--piece-fg);
-  font-family: var(--font-koma); font-weight: var(--koma-weight); font-size: 30px;
-  clip-path: polygon(50% 0%, 86% 14%, 95% 100%, 5% 100%, 14% 14%);
+  background-image: url("../img/koma.png"); background-size: 100% 100%; color: #2a1c0a;
+  font-family: var(--font-koma); font-weight: var(--koma-weight); font-size: 26px;
 }
 .promo-choices .pc.promo { color: var(--piece-promo); }
 
@@ -504,15 +501,15 @@ footer.foot {
 :root[data-koma="brush"] {
   --font-koma: "KomaBrush", "Hiragino Mincho ProN", serif;
   --koma-weight: 400;
-  --koma-size: .74;
+  --koma-size: .62;
 }
 :root[data-koma="mincho"] {
   --font-koma: "Hiragino Mincho ProN", "Yu Mincho", serif;
   --koma-weight: 600;
-  --koma-size: .66;
+  --koma-size: .58;
 }
 :root[data-koma="gothic"] {
   --font-koma: var(--font-ui);
-  --koma-weight: 800;
-  --koma-size: .60;
+  --koma-weight: 700;
+  --koma-size: .54;
 }
