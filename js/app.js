@@ -145,11 +145,12 @@
 
   /* 表示設定（形勢を見せるかどうか。記録自体は常に行う） */
   var VIEW_KEY = 'shogi_view_v1';
-  var VIEW = { showEval: true };
+  var VIEW = { showEval: true, theme: 'light' };
   (function loadView() {
     try {
       var v = JSON.parse(localStorage.getItem(VIEW_KEY) || 'null');
       if (v && typeof v.showEval === 'boolean') VIEW.showEval = v.showEval;
+      if (v && v.theme) VIEW.theme = v.theme;
     } catch (e) { }
   })();
   function saveView() {
@@ -167,6 +168,12 @@
     for (var i = 0; i < segs.length; i++) {
       segs[i].classList.toggle('on', (segs[i].dataset.evalshow === '1') === on);
     }
+    // 配色
+    document.documentElement.setAttribute('data-theme', VIEW.theme);
+    var ts = document.querySelectorAll('[data-theme][class*="seg-btn"]');
+    for (var j = 0; j < ts.length; j++) ts[j].classList.toggle('on', ts[j].dataset.theme === VIEW.theme);
+    var meta = document.querySelector('meta[name=theme-color]');
+    if (meta) meta.setAttribute('content', VIEW.theme === 'dark' ? '#14161c' : '#f4f1ea');
   }
 
   /* 2台対戦 */
@@ -232,7 +239,7 @@
     var timed = !!(RULES.time || RULES.byoyomi);
     map.forEach(function (o) {
       var p = P(o.side);
-      $(o.name).textContent = (o.side > 0 ? '☗' : '☖') + p.name;
+      $(o.name).textContent = (o.side > 0 ? '▲' : '△') + p.name;
       // 種別とレーティングの目安
       var sub = p.type === 'cp' ? E.level(p.level).name + '・R' + E.level(p.level).rating : '人';
       if (p.type !== 'cp') {
@@ -240,7 +247,7 @@
         if (st && st.rating && p.name.indexOf('あなた') >= 0) sub = '人・R' + st.rating;
       }
       $(o.who).textContent = '（' + sub + '）';
-      if ($(o.av)) $(o.av).textContent = o.side > 0 ? '☗' : '☖';
+      if ($(o.av)) $(o.av).className = 'avatar' + (o.side > 0 ? ' sente' : ' gote');
 
       var cl = $(o.clock);
       cl.textContent = clockText(o.side);
@@ -423,7 +430,7 @@
       mine = isMyTurnView();
       if (mine) s = '<b style="color:var(--good)">あなたの番です</b>';
       else if (G.thinking) s = (G.pos.side > 0 ? '先手' : '後手') + 'が考えています <span class="thinking"><i></i><i></i><i></i></span>';
-      else s = (G.pos.side > 0 ? '☗先手' : '☖後手') + '（' + P(G.pos.side).name + '）の手番';
+      else s = (G.pos.side > 0 ? '▲先手' : '△後手') + '（' + P(G.pos.side).name + '）の手番';
       if (G.pos.inCheck()) s = '<b>王手！</b> ' + s;
       // 直前の手を文字で出す
       if (G.moves.length) {
@@ -476,6 +483,7 @@
     var mate = null;
     if (Math.abs(sc) > E.MATE - 500) mate = (sc > 0 ? '先手' : '後手') + 'の詰み';
     U.setEval(sc, mate, evalWord(sc));
+    if ($('evalWord')) $('evalWord').textContent = VIEW.showEval ? evalWord(sc) : '';
   }
 
   function setEngineInfo(d, label) {
@@ -1242,7 +1250,7 @@
 
   function updateRankBadge() {
     var st = loadRating();
-    $('myRankBadge').textContent = st ? '棋力：' + st.rank + '（R' + st.rating + '）' : '棋力：未測定';
+    $('myRankBadge').textContent = st ? st.rank + '・R' + st.rating : '棋力未測定';
     $('myRankBadge').className = 'badge' + (st ? ' on' : '');
   }
 
@@ -1590,6 +1598,9 @@
       if (t.dataset.netside !== undefined) netSideSetting = parseInt(t.dataset.netside, 10);
       if (t.dataset.foul !== undefined) { RULES.foulLoss = t.dataset.foul === '1'; clearSel(); refresh(); }
       if (t.dataset.maxmoves !== undefined) RULES.maxMoves = parseInt(t.dataset.maxmoves, 10);
+      if (t.dataset.theme !== undefined && t.classList.contains('seg-btn')) {
+        VIEW.theme = t.dataset.theme; saveView(); applyViewSetting();
+      }
       if (t.dataset.evalshow !== undefined) {
         VIEW.showEval = t.dataset.evalshow === '1';
         saveView();
@@ -1875,29 +1886,29 @@
       // iPhoneのChrome/Firefox/Edgeはオフライン保存に対応していない
       var ua = navigator.userAgent;
       if (/CriOS|FxiOS|EdgiOS/.test(ua)) {
-        badge.textContent = 'Safariで開いてください';
+        badge.textContent = 'Safariで開く';
         badge.title = 'iPhoneでは Safari で開くと、オフライン保存とホーム画面への追加ができます';
         badge.style.borderColor = 'rgba(255,184,77,.6)';
         badge.style.color = 'var(--accent2)';
       } else {
-        badge.textContent = 'オフライン：非対応';
+        badge.textContent = '保存不可';
         badge.title = 'このブラウザはオフライン保存に対応していません';
       }
       return;
     }
     if (location.protocol === 'file:') {
-      badge.textContent = 'オフライン：—';
+      badge.textContent = '保存なし';
       badge.title = 'ファイルを直接開いているため、オフライン保存は使えません';
       return;
     }
     navigator.serviceWorker.register('sw.js').then(function () {
       return navigator.serviceWorker.ready;
     }).then(function () {
-      badge.textContent = 'オフラインOK';
+      badge.textContent = '保存済み';
       badge.className = 'badge on';
       badge.title = 'アプリを端末に保存しました。圏内でなくても遊べます';
     }).catch(function () {
-      badge.textContent = 'オフライン：不可';
+      badge.textContent = '保存不可';
       badge.title = 'httpsで開くとオフライン保存が有効になります';
     });
   }
@@ -1919,10 +1930,10 @@
     engine.init().then(function (mode) {
       var b = $('engineBadge');
       if (mode === 'worker') {
-        b.textContent = 'エンジン：別スレッド稼働';
+        b.textContent = '別スレッド';
         b.className = 'badge on';
       } else {
-        b.textContent = 'エンジン：簡易モード';
+        b.textContent = '簡易モード';
         b.className = 'badge';
         b.title = 'file:// で開いているため Worker が使えません。ローカルサーバー経由で開くと思考が速くなります。';
         var note = el('div', 'notice');

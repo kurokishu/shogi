@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="color-scheme" content="light dark">
+<meta name="color-scheme" content="light">
 <meta name="theme-color" content="#f4f1ea">
 <title>将棋 — 対CP・観戦・対人・棋譜解析・段位測定</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -32,7 +32,7 @@
 
     <!-- 上側の対局者 -->
     <div class="player-bar" id="barWhite">
-      <div class="avatar" id="avatarWhite">☖</div>
+      <div class="avatar gote" id="avatarWhite"></div>
       <div class="pcol">
         <div class="pname">
           <span id="nameWhite">後手</span>
@@ -56,7 +56,7 @@
 
     <!-- 下側の対局者 -->
     <div class="player-bar" id="barBlack">
-      <div class="avatar" id="avatarBlack">☗</div>
+      <div class="avatar sente" id="avatarBlack"></div>
       <div class="pcol">
         <div class="pname">
           <span id="nameBlack">先手</span>
@@ -84,18 +84,18 @@
           <div class="fill" id="evalFill"></div>
           <div class="marker" id="evalMarker"></div>
         </div>
-        <span class="eval-num" id="evalText">±0</span>
-        <button class="icon-btn" id="btnEvalHide" title="形勢をかくす">✕</button>
+        <span class="eval-num" id="evalText">±0</span><span class="eval-word" id="evalWord"></span>
+        <button class="icon-btn" id="btnEvalHide" title="形勢をかくす" aria-label="形勢をかくす"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       </div>
       <button class="btn ghost tiny wide" id="btnGraph">形勢の推移グラフを見る</button>
     </div>
 
     <!-- 操作 -->
     <div class="actions-bar">
-      <button class="act" id="btnUndo"><span class="ico">↺</span><span>待った</span></button>
-      <button class="act" id="btnHint"><span class="ico">💡</span><span>ヒント</span></button>
-      <button class="act danger" id="btnResign"><span class="ico">🏳</span><span>投了</span></button>
-      <button class="act" id="btnMenu"><span class="ico">☰</span><span>メニュー</span></button>
+      <button class="act" id="btnUndo"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5v6h6"/><path d="M4.6 11a8 8 0 1 1 1.4 6"/></svg></span><span>待った</span></button>
+      <button class="act" id="btnHint"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 18h5"/><path d="M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.5.4.8 1 .8 1.6v.5h5.4v-.5c0-.6.3-1.2.8-1.6A6 6 0 0 0 12 3z"/></svg></span><span>ヒント</span></button>
+      <button class="act danger" id="btnResign"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V4"/><path d="M6 4h11l-2 3.5L17 11H6"/></svg></span><span>投了</span></button>
+      <button class="act" id="btnMenu"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></span><span>メニュー</span></button>
     </div>
   </section>
 
@@ -105,17 +105,17 @@
       <div class="sheet-grip"></div>
       <div class="sheet-head">
         <h2>メニュー</h2>
-        <button class="icon-btn" id="btnMenuClose">✕</button>
+        <button class="icon-btn" id="btnMenuClose" aria-label="閉じる"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       </div>
       <div class="sheet-body">
 
         <nav class="tabs" id="tabs">
-          <button data-tab="play" class="on"><span class="tico">🤖</span>対CP戦</button>
-          <button data-tab="cpcp"><span class="tico">🤖🤖</span>CP対CP</button>
-          <button data-tab="human"><span class="tico">👥</span>対人戦</button>
-          <button data-tab="net"><span class="tico">📱📱</span>2台で対戦</button>
-          <button data-tab="rank"><span class="tico">🏆</span>段位測定</button>
-          <button data-tab="kifu"><span class="tico">📖</span>棋譜・解析</button>
+          <button data-tab="play" class="on"><span class="tico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M12 3.2 17.4 6l1.6 12.8H5L6.6 6z"/><rect x="9" y="9" width="6" height="5" rx="1"/></svg></span>対CP戦</button>
+          <button data-tab="cpcp"><span class="tico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2.5" y="6" width="8" height="12" rx="1.5"/><rect x="13.5" y="6" width="8" height="12" rx="1.5"/><path d="M5.5 10h2M16.5 10h2"/></svg></span>CP対CP</button>
+          <button data-tab="human"><span class="tico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8.5" r="2.8"/><circle cx="16.5" cy="9.5" r="2.3"/><path d="M2.8 19c.6-3 2.7-4.6 5.2-4.6S12.6 16 13.2 19"/><path d="M14.4 19c.5-2.3 2-3.6 4-3.6 1.4 0 2.6.6 3.3 1.7"/></svg></span>対人戦</button>
+          <button data-tab="net"><span class="tico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2.5" y="4" width="8" height="16" rx="1.6"/><rect x="13.5" y="4" width="8" height="16" rx="1.6"/><path d="M10.5 12h3"/></svg></span>2台で対戦</button>
+          <button data-tab="rank"><span class="tico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M4 15a8 8 0 0 1 16 0"/><path d="M12 15 16 9"/><circle cx="12" cy="15" r="1.4"/><path d="M4 19h16"/></svg></span>段位測定</button>
+          <button data-tab="kifu"><span class="tico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="4" y="3.5" width="16" height="17" rx="1.6"/><path d="M7 15l3-4 2.5 2.5L17 8"/></svg></span>棋譜・解析</button>
         </nav>
 
         <!-- 対CP戦 -->
@@ -272,10 +272,10 @@
           <h2>棋譜 <span class="hint" id="kifuCount"></span></h2>
           <div class="move-list" id="moveList"></div>
           <div class="nav-row">
-            <button class="btn" id="btnFirst">|◀</button>
-            <button class="btn" id="btnPrev">◀</button>
-            <button class="btn" id="btnNext">▶</button>
-            <button class="btn" id="btnLast">▶|</button>
+            <button class="btn" id="btnFirst">&#x25C0;&#x25C0;</button>
+            <button class="btn" id="btnPrev">&#x25C0;</button>
+            <button class="btn" id="btnNext">&#x25B6;</button>
+            <button class="btn" id="btnLast">&#x25B6;&#x25B6;</button>
           </div>
         </div>
 
@@ -291,6 +291,13 @@
 
         <div class="card">
           <h2>表示</h2>
+          <div class="row">
+            <label>配色</label>
+            <div class="row seg" style="flex:1;margin:0">
+              <div class="seg-btn on" data-theme="light">明るい</div>
+              <div class="seg-btn" data-theme="dark">暗い</div>
+            </div>
+          </div>
           <div class="row">
             <label>形勢の表示</label>
             <div class="row seg" style="flex:1;margin:0">
@@ -360,7 +367,7 @@
       <div class="sheet-grip"></div>
       <div class="sheet-head">
         <h2>形勢の推移</h2>
-        <button class="icon-btn" id="btnGraphClose">✕</button>
+        <button class="icon-btn" id="btnGraphClose" aria-label="閉じる"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       </div>
       <div class="sheet-body">
         <div id="liveGraph"></div>
