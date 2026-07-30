@@ -4,7 +4,7 @@
  * ========================================================================== */
 (function () {
   'use strict';
-  var S = window.Shogi, E = window.Engine, K = window.Kifu, U = window.UI;
+  var S = window.Shogi, E = window.Engine, K = window.Kifu, U = window.UI, St = window.Strategy;
   var $ = U.$, el = U.el;
 
   /* ==================================================================
@@ -139,6 +139,9 @@
   var rankGames = 5;
   var mySideSetting = 1;
   var netSideSetting = 0;
+  /* 戦法（先手／後手）。'auto' は指定なし */
+  var STRAT = { 1: 'auto', '-1': 'auto' };
+  function stratOf(side) { return STRAT[side > 0 ? 1 : '-1'] || 'auto'; }
 
   /* 大会ルール設定  time: 持ち時間(秒, 0で無制限) / byoyomi: 秒読み(秒) */
   var RULES = { foulLoss: true, maxMoves: 256, time: 0, byoyomi: 0 };
@@ -448,6 +451,12 @@
         s = lbl + (nm && nm !== '先手' && nm !== '後手' ? '（' + nm + '）' : '') + 'の手番';
       }
       if (G.pos.inCheck()) s = '<b>王手！</b> ' + s;
+      // 戦法を指定していれば、次の一手を助言する
+      if (mine && St) {
+        var sug = St.nextMove(G.pos, stratOf(G.pos.side));
+        if (sug) s += '<span class="sub">' + St.get(stratOf(G.pos.side)).name +
+          '：' + S.moveToJa(G.pos, sug, -1, {}) + '</span>';
+      }
       // 直前の手を文字で出す
       if (G.moves.length) {
         var lm = G.moves[G.cursor - 1] || G.moves[G.moves.length - 1];
@@ -720,6 +729,21 @@
   }
 
   function thinkAndMove(level) {
+    // 戦法が指定されていれば、その手順を優先する
+    var sm = St ? St.nextMove(G.pos, stratOf(G.pos.side)) : 0;
+    if (sm) {
+      G.thinking = true;
+      renderStatus();
+      setEngineInfo(null, '戦法どおりに指します（' + St.get(stratOf(G.pos.side)).name + '）');
+      var myPly0 = G.moves.length;
+      setTimeout(function () {
+        G.thinking = false;
+        if (G.finished || myPly0 !== G.moves.length) { renderStatus(); return; }
+        $('engDepth').textContent = '戦法'; $('engNodes').textContent = '—';
+        doMove(sm);
+      }, G.mode === 'cpcp' ? 10 : 350);
+      return;
+    }
     G.thinking = true;
     renderStatus();
     setEngineInfo(null, '考慮中（' + E.level(level).name + '）');
@@ -1694,6 +1718,26 @@
       U.textDialog('もう1台の端末で開く', 'このアドレスを開いて、部屋番号を入力してください。', text, { copy: true });
     });
 
+    // 戦法の選択肢
+    function fillStrat(id, side) {
+      var sel = $(id);
+      if (!sel || !St) return;
+      sel.innerHTML = '';
+      St.LIST.forEach(function (st) {
+        var o = el('option', null, st.name);
+        o.value = st.id;
+        sel.appendChild(o);
+      });
+      sel.value = 'auto';
+      sel.addEventListener('change', function () {
+        STRAT[side > 0 ? 1 : '-1'] = sel.value;
+        updateStratNote();
+      });
+    }
+    fillStrat('stratB', 1);
+    fillStrat('stratW', -1);
+    updateStratNote();
+
     fillLevelSelect('cpLevel', 4);
     fillLevelSelect('cpLevelB', 8);
     fillLevelSelect('cpLevelW', 5);
@@ -1886,6 +1930,17 @@
       $('clockBlack').textContent = clockText(-topSide);
       checkTimeout();
     }, 500);
+  }
+
+  function updateStratNote() {
+    if (!$('stratNote') || !St) return;
+    var b = St.get(stratOf(1)), w = St.get(stratOf(-1));
+    var parts = [];
+    if (b.id !== 'auto') parts.push('先手 ' + b.name + '：' + b.note);
+    if (w.id !== 'auto') parts.push('後手 ' + w.name + '：' + w.note);
+    $('stratNote').innerHTML = parts.length
+      ? parts.join('<br>') + '<br>序盤24手までその形に組みます。相手に妨げられたら通常の読みに戻ります。'
+      : '「おまかせ」は定跡と読みにまかせます。戦法を選ぶと、CPはその形に組みます（あなたの手番なら次の一手を助言します）。';
   }
 
   function updateLevelNote() {
