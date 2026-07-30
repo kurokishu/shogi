@@ -1,6 +1,19 @@
 /* ==========================================================================
    将棋アプリ スタイル（スマートフォン優先）
+   駒の書体は SIL Open Font License のフォントを16文字に絞って同梱している
+   （fonts/README.md 参照）
    ========================================================================== */
+@font-face {
+  font-family: "KomaKaisho";
+  src: url("../fonts/koma-kaisho.woff2") format("woff2");
+  font-weight: 600; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "KomaBrush";
+  src: url("../fonts/koma-brush.woff2") format("woff2");
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+
 :root {
   --bg: #f4f1ea;
   --card: #ffffff;
@@ -39,6 +52,10 @@
   --font-display: var(--font-ui);
   --font-num: "Helvetica Neue", Helvetica, Arial, "Hiragino Sans", sans-serif;
   --font: var(--font-ui);
+  /* 駒の書体（既定：楷書）。data-koma で切り替える */
+  --font-koma: "KomaKaisho", "Hiragino Mincho ProN", serif;
+  --koma-weight: 600;
+  --koma-size: .70;
 }
 
 :root[data-theme="dark"] {
@@ -158,7 +175,8 @@ main.layout {
   width: 25px; height: 29px;
   background: var(--piece-bg); color: var(--piece-fg);
   clip-path: polygon(50% 0%, 86% 14%, 95% 100%, 5% 100%, 14% 14%);
-  font-family: var(--font-ui); font-weight: 800; font-size: 17px;
+  font-family: var(--font-koma); font-weight: var(--koma-weight);
+  font-size: calc(29px * var(--koma-size));
 }
 .hand.gote .hand-piece .hp-face { background: var(--piece-bg2); }
 .hand-piece.sel .hp-face { box-shadow: 0 0 0 3px var(--sel); filter: brightness(1.06); }
@@ -215,8 +233,8 @@ main.layout {
   display: flex; align-items: center; justify-content: center;
   background: var(--piece-bg); color: var(--piece-fg);
   clip-path: polygon(50% 0%, 86% 14%, 95% 100%, 5% 100%, 14% 14%);
-  font-family: var(--font-ui);
-  font-weight: 800; font-size: calc(var(--cell) * .60);
+  font-family: var(--font-koma);
+  font-weight: var(--koma-weight); font-size: calc(var(--cell) * var(--koma-size));
   line-height: 1; letter-spacing: 0;
   filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, .26));
 }
@@ -450,7 +468,8 @@ main.layout {
 }
 .promo-choices button:hover { border-color: var(--accent); }
   width: 46px; height: 50px; display: flex; align-items: center; justify-content: center;
-  background: var(--piece-bg); color: var(--piece-fg); font-weight: 800; font-size: 23px;
+  background: var(--piece-bg); color: var(--piece-fg);
+  font-family: var(--font-koma); font-weight: var(--koma-weight); font-size: 30px;
   clip-path: polygon(50% 0%, 86% 14%, 95% 100%, 5% 100%, 14% 14%);
 }
 .promo-choices .pc.promo { color: var(--piece-promo); }
@@ -479,4 +498,21 @@ footer.foot {
 @media (min-width: 640px) {
   .sheet-overlay { align-items: center; }
   .sheet { border-radius: 20px; max-height: 84vh; }
+}
+
+/* ---------------- 駒の書体の切り替え ---------------- */
+:root[data-koma="brush"] {
+  --font-koma: "KomaBrush", "Hiragino Mincho ProN", serif;
+  --koma-weight: 400;
+  --koma-size: .74;
+}
+:root[data-koma="mincho"] {
+  --font-koma: "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --koma-weight: 600;
+  --koma-size: .66;
+}
+:root[data-koma="gothic"] {
+  --font-koma: var(--font-ui);
+  --koma-weight: 800;
+  --koma-size: .60;
 }

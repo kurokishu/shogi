@@ -24,6 +24,8 @@ var MIME = {
   '.png': 'image/png',
   '.ico': 'image/x-icon',
   '.webmanifest': 'application/manifest+json; charset=utf-8',
+  '.woff2': 'font/woff2',
+  '.woff': 'font/woff',
   '.kif': 'text/plain; charset=utf-8',
   '.md': 'text/plain; charset=utf-8'
 };

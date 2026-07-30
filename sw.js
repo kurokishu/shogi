@@ -4,7 +4,7 @@
  *   以後は圏外・機内モードでも起動できる。
  *   （2台対戦だけは通信が必要）
  * ========================================================================== */
-var VERSION = 'shogi-v9';
+var VERSION = 'shogi-v10';
 var FILES = [
   './',
   './index.html',
@@ -17,6 +17,8 @@ var FILES = [
   './js/ui.js',
   './js/app.js',
   './js/worker.js',
+  './fonts/koma-kaisho.woff2',
+  './fonts/koma-brush.woff2',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/apple-touch-icon.png',

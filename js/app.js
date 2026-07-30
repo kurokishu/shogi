@@ -145,12 +145,13 @@
 
   /* 表示設定（形勢を見せるかどうか。記録自体は常に行う） */
   var VIEW_KEY = 'shogi_view_v1';
-  var VIEW = { showEval: true, theme: 'light' };
+  var VIEW = { showEval: true, theme: 'light', koma: 'kaisho' };
   (function loadView() {
     try {
       var v = JSON.parse(localStorage.getItem(VIEW_KEY) || 'null');
       if (v && typeof v.showEval === 'boolean') VIEW.showEval = v.showEval;
       if (v && v.theme) VIEW.theme = v.theme;
+      if (v && v.koma) VIEW.koma = v.koma;
     } catch (e) { }
   })();
   function saveView() {
@@ -174,6 +175,10 @@
     for (var j = 0; j < ts.length; j++) ts[j].classList.toggle('on', ts[j].dataset.theme === VIEW.theme);
     var meta = document.querySelector('meta[name=theme-color]');
     if (meta) meta.setAttribute('content', VIEW.theme === 'dark' ? '#14161c' : '#f4f1ea');
+    // 駒の書体
+    document.documentElement.setAttribute('data-koma', VIEW.koma);
+    var ks = document.querySelectorAll('[data-koma][class*="seg-btn"]');
+    for (var k = 0; k < ks.length; k++) ks[k].classList.toggle('on', ks[k].dataset.koma === VIEW.koma);
   }
 
   /* 2台対戦 */
@@ -1609,6 +1614,10 @@
       if (t.dataset.netside !== undefined) netSideSetting = parseInt(t.dataset.netside, 10);
       if (t.dataset.foul !== undefined) { RULES.foulLoss = t.dataset.foul === '1'; clearSel(); refresh(); }
       if (t.dataset.maxmoves !== undefined) RULES.maxMoves = parseInt(t.dataset.maxmoves, 10);
+      if (t.dataset.koma !== undefined && t.classList.contains('seg-btn')) {
+        VIEW.koma = t.dataset.koma; saveView(); applyViewSetting();
+        U.toast('駒の書体を変えました');
+      }
       if (t.dataset.theme !== undefined && t.classList.contains('seg-btn')) {
         VIEW.theme = t.dataset.theme; saveView(); applyViewSetting();
       }
