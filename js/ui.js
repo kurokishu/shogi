@@ -67,7 +67,8 @@
     var topSide = curFlip ? S.BLACK : S.WHITE;      // 画面の上側にいる手番
     var isTop = (pc > 0 ? S.BLACK : S.WHITE) === topSide;
     var cls = 'piece' + (isTop ? ' upside' : '') + (pc < 0 ? ' gote' : ' sente') + (p >= 9 ? ' promo' : '');
-    return el('div', cls, S.PIECE_CHAR[p]);
+    var ch = (p === S.OU && pc < 0) ? '王' : S.PIECE_CHAR[p];
+    return el('div', cls, ch);
   }
 
   /* ---------------- 全体描画 ----------------
@@ -136,14 +137,15 @@
   }
 
   /* ---------------- 評価バー ---------------- */
-  function setEval(score, mateInfo) {
+  function setEval(score, mateInfo, word) {
     var pct = 50 + 50 * Math.tanh(score / 900);
     pct = Math.max(1, Math.min(99, pct));
     $('evalFill').style.width = pct + '%';
-    var txt;
-    if (mateInfo) txt = mateInfo;
-    else txt = (score > 0 ? '+' : score < 0 ? '' : '±') + score;
-    $('evalText').innerHTML = '評価値 <b>' + txt + '</b>';
+    var mk = $('evalMarker');
+    if (mk) mk.style.left = pct + '%';
+    var txt = mateInfo ? mateInfo : ((score > 0 ? '+' : score < 0 ? '' : '±') + Math.round(score));
+    $('evalText').textContent = txt;
+    $('evalText').title = word || '';
   }
 
   /* ---------------- トースト ---------------- */

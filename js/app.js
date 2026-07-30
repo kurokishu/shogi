@@ -220,17 +220,35 @@
     renderMoveList();
     renderStatus();
     updateEvalBar();
+    if ($('graphSheet') && $('graphSheet').classList.contains('on')) renderLiveGraph();
   }
 
   function renderBars() {
     var topSide = G.flip ? 1 : -1;
-    var map = [{ bar: 'barWhite', name: 'nameWhite', who: 'whoWhite', clock: 'clockWhite', side: topSide },
-    { bar: 'barBlack', name: 'nameBlack', who: 'whoBlack', clock: 'clockBlack', side: -topSide }];
+    var map = [
+      { bar: 'barWhite', name: 'nameWhite', who: 'whoWhite', clock: 'clockWhite', cap: 'clockCapWhite', av: 'avatarWhite', side: topSide },
+      { bar: 'barBlack', name: 'nameBlack', who: 'whoBlack', clock: 'clockBlack', cap: 'clockCapBlack', av: 'avatarBlack', side: -topSide }
+    ];
+    var timed = !!(RULES.time || RULES.byoyomi);
     map.forEach(function (o) {
       var p = P(o.side);
-      $(o.name).textContent = (o.side > 0 ? '☗先手 ' : '☖後手 ') + p.name;
-      $(o.who).textContent = p.type === 'cp' ? '（' + E.level(p.level).name + '）' : '（人）';
-      $(o.clock).textContent = clockText(o.side);
+      $(o.name).textContent = (o.side > 0 ? '☗' : '☖') + p.name;
+      // 種別とレーティングの目安
+      var sub = p.type === 'cp' ? E.level(p.level).name + '・R' + E.level(p.level).rating : '人';
+      if (p.type !== 'cp') {
+        var st = loadRating();
+        if (st && st.rating && p.name.indexOf('あなた') >= 0) sub = '人・R' + st.rating;
+      }
+      $(o.who).textContent = '（' + sub + '）';
+      if ($(o.av)) $(o.av).textContent = o.side > 0 ? '☗' : '☖';
+
+      var cl = $(o.clock);
+      cl.textContent = clockText(o.side);
+      var r = remainOf(o.side);
+      var byo = timed && inByoNow(o.side);
+      cl.className = 'clock' + (byo ? ' byo' : (timed && r !== null && r < 60 ? ' low' : ''));
+      if ($(o.cap)) $(o.cap).textContent = timed ? (byo ? '' : '残り') : '消費';
+
       var active = !G.finished && G.pos.side === o.side;
       $(o.bar).className = 'player-bar' + (active ? ' active' : '');
     });
@@ -297,7 +315,7 @@
     var r = remainOf(side);
     if (r === null) return fmtClock(G.clocks[side > 0 ? 1 : '-1']);
     if (inByoNow(side)) return '秒読み ' + Math.ceil(r) + '秒';
-    return '残り ' + fmtClock(r);
+    return fmtClock(r);
   }
 
   function checkTimeout() {
@@ -311,6 +329,46 @@
       winner: w, text: (side > 0 ? '先手' : '後手') + 'の時間切れ負け',
       kif: '切れ負け', reason: 'timeout'
     });
+  }
+
+  /* ---------------- 形勢の推移（対局中も記録する） ----------------
+   * 対局中は簡易評価、解析後は正確な評価に置き換わる。
+   */
+  function recordEval() {
+    if (!G.evalHist) G.evalHist = [];
+    var n = G.moves.length;
+    // CPの読みがあればそれを、無ければ簡易評価を使う
+    if (shownEvalPly === n && Math.abs(shownEval) < E.MATE) G.evalHist[n] = shownEval;
+    else if (G.evalHist[n] === undefined) G.evalHist[n] = E.evaluate(G.pos);
+  }
+
+  function evalSeries() {
+    if (G.analysis && G.analysis.blackScore && G.analysis.blackScore.length > 1) {
+      return { data: G.analysis.blackScore, exact: true };
+    }
+    return { data: G.evalHist || [], exact: false };
+  }
+
+  function renderLiveGraph() {
+    var box = $('liveGraph');
+    if (!box) return;
+    if (!VIEW.showEval) {
+      box.innerHTML = '<div class="notice">形勢を「かくす」設定です。メニューの「表示」で戻せます（記録は続いています）。</div>';
+      $('graphNote').textContent = '';
+      return;
+    }
+    var s = evalSeries();
+    if (!s.data || s.data.length < 2) {
+      box.innerHTML = '<div class="hint">まだ記録がありません。数手指すとグラフが出ます。</div>';
+      $('graphNote').textContent = '';
+      return;
+    }
+    box.innerHTML = evalGraph(s.data, G.cursor);
+    var cur = s.data[G.cursor];
+    var mv = G.cursor > 0 && G.moves[G.cursor - 1] ? G.moves[G.cursor - 1].ja : '開始局面';
+    $('graphNote').innerHTML = mv + '（' + G.cursor + '手目）　<b>' +
+      (cur > 0 ? '+' : '') + Math.round(cur) + '</b>　' + evalWord(cur) + '<br>' +
+      (s.exact ? '解析済みの正確な評価値です。' : '対局中の簡易評価です。「棋譜・解析」を実行すると正確な値に置き換わります。');
   }
 
   function renderMoveList() {
@@ -349,19 +407,36 @@
     }
   }
 
+  /* 自分の手番かどうか（画面下側の人が「自分」） */
+  function isMyTurnView() {
+    if (G.finished || !atLive()) return false;
+    if (G.mode === 'net' && NET.on) return G.pos.side === NET.side;
+    if (G.mode === 'play') return P(G.pos.side).type === 'human';
+    return false;
+  }
+
   function renderStatus() {
-    var s = '';
+    var s = '', mine = false;
     if (G.finished) s = '対局終了：' + G.finished.text;
-    else if (!atLive()) s = '検討中（' + G.cursor + '手目を表示）— ▶| で最新局面へ';
+    else if (!atLive()) s = '検討中（' + G.cursor + '手目）— ▶| で最新へ';
     else {
-      s = (G.pos.side > 0 ? '先手' : '後手') + '（' + P(G.pos.side).name + '）の手番';
-      if (G.pos.inCheck()) s += ' ／ <b style="color:var(--bad)">王手</b>';
-      if (G.thinking) s += ' ／ 考慮中 <span class="thinking"><i></i><i></i><i></i></span>';
+      mine = isMyTurnView();
+      if (mine) s = '<b style="color:var(--good)">あなたの番です</b>';
+      else if (G.thinking) s = (G.pos.side > 0 ? '先手' : '後手') + 'が考えています <span class="thinking"><i></i><i></i><i></i></span>';
+      else s = (G.pos.side > 0 ? '☗先手' : '☖後手') + '（' + P(G.pos.side).name + '）の手番';
+      if (G.pos.inCheck()) s = '<b>王手！</b> ' + s;
+      // 直前の手を文字で出す
+      if (G.moves.length) {
+        var lm = G.moves[G.cursor - 1] || G.moves[G.moves.length - 1];
+        if (lm) s += '<span class="sub">直前：' + lm.ja + '</span>';
+      }
     }
     if (G.measure) {
-      s = '【段位測定 ' + (G.measure.index + 1) + '/' + G.measure.total + '局】相手：' +
-        E.level(G.measure.level).name + '　' + s;
+      s = '【測定 ' + (G.measure.index + 1) + '/' + G.measure.total + '局・相手' +
+        E.level(G.measure.level).name + '】' + s;
     }
+    var sr = document.querySelector('.status-row');
+    if (sr) sr.className = 'status-row' + (mine ? ' mine' : '');
     if (G.mode === 'net' && NET.on && !G.finished) {
       s = '【2台対戦 部屋' + NET.room + '】あなたは' + (NET.side > 0 ? '先手' : '後手') + '　' + s;
     }
@@ -374,19 +449,33 @@
     $('btnDeclare').disabled = !!G.finished;
   }
 
+  /* 形勢を言葉にする */
+  function evalWord(cp) {
+    var a = Math.abs(cp), who = cp > 0 ? '先手' : '後手';
+    if (a < 120) return '互角';
+    if (a < 400) return 'やや' + who;
+    if (a < 900) return who + '優勢';
+    if (a < 2000) return who + '有利';
+    return who + '勝勢';
+  }
+
   var shownEval = 0, shownEvalPly = -1;
-  function updateEvalBar() {
-    var sc;
+
+  /* 現在表示中の局面の形勢（先手視点） */
+  function currentEval() {
     if (G.analysis && G.analysis.blackScore && G.analysis.blackScore[G.cursor] !== undefined) {
-      sc = G.analysis.blackScore[G.cursor];               // 解析済みの正確な値
-    } else if (atLive() && shownEvalPly === G.moves.length) {
-      sc = shownEval;                                     // 直前のCPの読みから
-    } else {
-      sc = E.evaluate(G.pos);                             // 簡易（静的）評価
+      return G.analysis.blackScore[G.cursor];             // 解析済みの正確な値
     }
+    if (atLive() && shownEvalPly === G.moves.length) return shownEval;   // 直前のCPの読み
+    if (G.evalHist && G.evalHist[G.cursor] !== undefined) return G.evalHist[G.cursor];
+    return E.evaluate(G.pos);                             // 簡易（静的）評価
+  }
+
+  function updateEvalBar() {
+    var sc = currentEval();
     var mate = null;
-    if (Math.abs(sc) > E.MATE - 500) mate = (sc > 0 ? '先手' : '後手') + 'の勝ち（詰み）';
-    U.setEval(sc, mate);
+    if (Math.abs(sc) > E.MATE - 500) mate = (sc > 0 ? '先手' : '後手') + 'の詰み';
+    U.setEval(sc, mate, evalWord(sc));
   }
 
   function setEngineInfo(d, label) {
@@ -440,6 +529,7 @@
     G.clocks = { 1: 0, '-1': 0 };
     resetClocks();
     G.analysis = null;
+    G.evalHist = [];
     G.startedAt = Date.now();
     G.kifuId = null;
     G.lastMoveAt = Date.now();
@@ -469,6 +559,7 @@
     G.keys[G.cursor] = G.pos.posKey();
     G.checks[G.cursor - 1] = G.pos.inCheck() ? side : 0;
     G.clocks[side > 0 ? 1 : '-1'] += sec;
+    recordEval();
     clearSel();
   }
 
@@ -1301,23 +1392,39 @@
       (unit ? '<small>' + unit + '</small>' : '') + '</div></div>';
   }
 
-  function evalGraph(blackScore) {
-    var W = 300, H = 110, lim = 1500;
+  /* 形勢の推移グラフ（先手視点。上が先手優勢） */
+  function evalGraph(blackScore, cursor) {
+    var W = 320, H = 150, lim = 1500, pad = 6;
     var n = blackScore.length;
     if (n < 2) return '';
-    var pts = [];
-    for (var i = 0; i < n; i++) {
-      var v = Math.max(-lim, Math.min(lim, blackScore[i]));
-      var x = (i / (n - 1)) * W;
-      var y = H / 2 - (v / lim) * (H / 2 - 4);
-      pts.push(x.toFixed(1) + ',' + y.toFixed(1));
+    var mid = H / 2;
+    function xy(i) {
+      var v = Math.max(-lim, Math.min(lim, blackScore[i] || 0));
+      return [(i / (n - 1)) * W, mid - (v / lim) * (mid - pad)];
     }
-    var area = 'M0,' + (H / 2) + ' L' + pts.join(' L') + ' L' + W + ',' + (H / 2) + ' Z';
-    return '<svg class="graph" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" style="margin-top:8px">' +
-      '<line x1="0" y1="' + (H / 2) + '" x2="' + W + '" y2="' + (H / 2) + '" stroke="rgba(255,255,255,.25)" stroke-width="1"/>' +
-      '<path d="' + area + '" fill="rgba(90,169,255,.18)"/>' +
-      '<polyline points="' + pts.join(' ') + '" fill="none" stroke="#5aa9ff" stroke-width="1.6"/>' +
-      '</svg>';
+    var up = [], dn = [], line = [];
+    for (var i = 0; i < n; i++) {
+      var p = xy(i);
+      line.push(p[0].toFixed(1) + ',' + p[1].toFixed(1));
+    }
+    var area = 'M0,' + mid + ' L' + line.join(' L') + ' L' + W + ',' + mid + ' Z';
+    var svg = '<svg class="graph" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">';
+    // 目盛り
+    svg += '<rect x="0" y="0" width="' + W + '" height="' + mid + '" fill="rgba(37,99,235,.05)"/>';
+    svg += '<rect x="0" y="' + mid + '" width="' + W + '" height="' + mid + '" fill="rgba(220,38,38,.05)"/>';
+    svg += '<line x1="0" y1="' + mid + '" x2="' + W + '" y2="' + mid + '" stroke="currentColor" stroke-opacity=".35" stroke-width="1"/>';
+    svg += '<path d="' + area + '" fill="rgba(37,99,235,.16)"/>';
+    svg += '<polyline points="' + line.join(' ') + '" fill="none" stroke="#2563eb" stroke-width="2" stroke-linejoin="round"/>';
+    // 現在位置
+    if (cursor !== undefined && cursor >= 0 && cursor < n) {
+      var c = xy(cursor);
+      svg += '<line x1="' + c[0].toFixed(1) + '" y1="0" x2="' + c[0].toFixed(1) + '" y2="' + H + '" stroke="currentColor" stroke-opacity=".3" stroke-dasharray="3 3"/>';
+      svg += '<circle cx="' + c[0].toFixed(1) + '" cy="' + c[1].toFixed(1) + '" r="4" fill="#fff" stroke="#2563eb" stroke-width="2"/>';
+    }
+    svg += '</svg>';
+    svg += '<div class="graph-legend"><span>先手優勢 ↑</span><span>' + (n - 1) + '手</span><span>↓ 後手優勢</span></div>';
+    void up; void dn;
+    return svg;
   }
 
   /* ==================================================================
@@ -1489,6 +1596,7 @@
         applyViewSetting();
         renderMoveList();
         renderAnalysisOut();
+        renderLiveGraph();
         U.toast(VIEW.showEval ? '形勢を表示します' : '形勢をかくします（記録は続けています）');
       }
       if (t.dataset.tc !== undefined) {
@@ -1570,6 +1678,7 @@
       G.measure = null;
       G.flip = mySide < 0;
       newGame({ mode: 'play', players: players });
+      $('menuSheet').classList.remove('on');
       U.toast('あなたは' + (mySide > 0 ? '先手' : '後手') + 'です');
     });
 
@@ -1585,6 +1694,7 @@
         '-1': { type: 'cp', name: 'CP後手', level: parseInt($('cpLevelW').value, 10) }
       };
       newGame({ mode: 'cpcp', players: players });
+      $('menuSheet').classList.remove('on');
       G.cpcp.running = true;
       $('btnCpPause').textContent = '一時停止';
       maybeCpMove();
@@ -1614,6 +1724,7 @@
         '-1': { type: 'human', name: $('nameInW').value || '後手', level: 0 }
       };
       newGame({ mode: 'human', players: players });
+      $('menuSheet').classList.remove('on');
     });
 
     $('btnRankStart').addEventListener('click', function () {
@@ -1692,6 +1803,20 @@
     $('btnPrev').addEventListener('click', function () { goto(G.cursor - 1); });
     $('btnNext').addEventListener('click', function () { goto(G.cursor + 1); });
     $('btnLast').addEventListener('click', function () { goto(G.moves.length); });
+
+    /* ---- シート（メニュー・グラフ）---- */
+    function openSheet(id) { $(id).classList.add('on'); }
+    function closeSheet(id) { $(id).classList.remove('on'); }
+    $('btnMenu').addEventListener('click', function () { openSheet('menuSheet'); });
+    $('btnMenuClose').addEventListener('click', function () { closeSheet('menuSheet'); });
+    $('menuSheet').addEventListener('click', function (e) { if (e.target === this) closeSheet('menuSheet'); });
+    $('btnGraph').addEventListener('click', function () { renderLiveGraph(); openSheet('graphSheet'); });
+    $('btnGraphClose').addEventListener('click', function () { closeSheet('graphSheet'); });
+    $('graphSheet').addEventListener('click', function (e) { if (e.target === this) closeSheet('graphSheet'); });
+    $('btnEvalHide').addEventListener('click', function () {
+      VIEW.showEval = false; saveView(); applyViewSetting(); renderMoveList(); renderAnalysisOut();
+      U.toast('形勢をかくしました（メニューの「表示」で戻せます）');
+    });
 
     $('btnUndo').addEventListener('click', undo);
     $('btnHint').addEventListener('click', hint);
