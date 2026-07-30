@@ -4,7 +4,8 @@
  * ========================================================================== */
 (function () {
   'use strict';
-  var S = window.Shogi, E = window.Engine, K = window.Kifu, U = window.UI, St = window.Strategy;
+  var S = window.Shogi, E = window.Engine, K = window.Kifu, U = window.UI,
+    St = window.Strategy, T = window.Tactics;
   var $ = U.$, el = U.el;
 
   /* ==================================================================
@@ -188,6 +189,66 @@
   var NET = { on: false, room: null, token: null, side: 0, version: 0, names: {}, aborter: null };
 
   function P(side) { return G.players[side > 0 ? 1 : '-1']; }
+
+  /* ---------------- 戦法・囲い・手筋の成立を知らせる ---------------- */
+  var acTimer = null;
+  function showAchieve(kind, name, note) {
+    var box = $('achieve');
+    if (!box) return;
+    $('acKind').textContent = kind;
+    $('acName').textContent = name;
+    $('acNote').textContent = note || '';
+    box.classList.add('on');
+    clearTimeout(acTimer);
+    acTimer = setTimeout(function () { box.classList.remove('on'); }, 2400);
+  }
+
+  /* 直前の一手で新しく成立したものを調べ、記録して知らせる */
+  function checkAchievements(before, m, after) {
+    if (!T) return;
+    var side = before.side;
+    var who = side > 0 ? '先手' : '後手';
+    if (!G.tags) G.tags = { strategy: [], castle: [], technique: [] };
+    var seen = G.seenTags || (G.seenTags = {});
+    var n = G.moves.length;
+
+    function push(kind, key, item) {
+      var k = kind + ':' + who + ':' + item.name;
+      if (seen[k]) return;
+      seen[k] = true;
+      G.tags[key].push({ name: item.name, side: side, ply: n });
+      var label = kind === 'strategy' ? '戦法' : kind === 'castle' ? '囲い' : '手筋';
+      showAchieve(who + 'の' + label, item.name, item.note);
+    }
+    var st = T.detectStrategy(after, side);
+    if (st) push('strategy', 'strategy', st);
+    var ca = T.detectCastle(after, side);
+    if (ca) push('castle', 'castle', ca);
+    var te = T.detectTechnique(before, m, after);
+    if (te) {
+      // 手筋は何度出てもよいが、通知は同じ名前を続けて出さない
+      var k2 = 'technique:' + who + ':' + te.name + ':' + n;
+      if (!seen['t' + te.name + who] || n - (seen['t' + te.name + who] || -99) > 8) {
+        seen['t' + te.name + who] = n;
+        G.tags.technique.push({ name: te.name, side: side, ply: n });
+        showAchieve(who + 'の手筋', te.name, te.note);
+      }
+      void k2;
+    }
+  }
+
+  /* 保存・絞り込み用に、重複を除いた名前の一覧にする */
+  function tagNames(tags) {
+    var out = [];
+    if (!tags) return out;
+    ['strategy', 'castle', 'technique'].forEach(function (k) {
+      (tags[k] || []).forEach(function (t) {
+        var label = (t.side > 0 ? '▲' : '△') + t.name;
+        if (out.indexOf(label) < 0) out.push(label);
+      });
+    });
+    return out;
+  }
 
   /* ==================================================================
    *  盤面ユーティリティ
@@ -505,6 +566,17 @@
 
   function updateEvalBar() {
     var sc = currentEval();
+    // 盤の下は小さな折れ線グラフだけにする（棒グラフは廃止）
+    var mini = $('miniGraph');
+    if (mini) {
+      if (!VIEW.showEval) mini.innerHTML = '';
+      else {
+        var ser = evalSeries();
+        mini.innerHTML = (ser.data && ser.data.length > 1)
+          ? evalGraph(ser.data, G.cursor)
+          : '<div class="hint" style="margin:0">数手指すと推移が出ます</div>';
+      }
+    }
     var mate = null;
     if (Math.abs(sc) > E.MATE - 500) mate = (sc > 0 ? '先手' : '後手') + 'の詰み';
     U.setEval(sc, mate, evalWord(sc));
@@ -563,6 +635,8 @@
     resetClocks();
     G.analysis = null;
     G.evalHist = [];
+    G.tags = { strategy: [], castle: [], technique: [] };
+    G.seenTags = {};
     G.startedAt = Date.now();
     G.kifuId = null;
     G.lastMoveAt = Date.now();
@@ -600,7 +674,9 @@
   function doFoulMove(m, foul, fromNet) {
     truncateIfBrowsing();
     var ply = G.moves.length;
+    var before = G.pos.clone();
     pushMove(m);
+    checkAchievements(before, m, G.pos);
     if (G.mode === 'net' && NET.on && !fromNet) netSendMove(m, ply);
     var loser = -G.pos.side, winner = G.pos.side;
     refresh();
@@ -627,7 +703,9 @@
     if (G.finished) return;
     truncateIfBrowsing();
     var ply = G.moves.length;
+    var before = G.pos.clone();
     pushMove(m);
+    checkAchievements(before, m, G.pos);
     if (G.mode === 'net' && NET.on && !G.netApplying) netSendMove(m, ply);
     var end = detectEnd();
     refresh();
@@ -1496,6 +1574,7 @@
       date: G.startedAt, black: g.black, white: g.white,
       startSfen: g.startSfen, moves: g.moves,
       result: G.finished ? G.finished.text : '未終局',
+      tags: tagNames(G.tags),
       analysis: G.analysis ? { blackScore: G.analysis.blackScore, loss: G.analysis.loss } : null
     };
     G.kifuId = K.save(rec);
@@ -1503,15 +1582,39 @@
     U.toast('棋譜を保存しました');
   }
 
+  var kifuFilter = '';
   function renderKifuList() {
     var list = K.loadAll();
-    var box = $('kifuList');
-    if (!list.length) { box.innerHTML = '<div class="kifu-item"><span class="t">保存された棋譜はありません</span></div>'; return; }
+    var box = $('kifuList'), fbox = $('kifuFilter');
+
+    // 絞り込みチップ（保存されている戦法・囲い・手筋から作る）
+    if (fbox) {
+      var counts = {};
+      list.forEach(function (r) {
+        (r.tags || []).forEach(function (t) { counts[t] = (counts[t] || 0) + 1; });
+      });
+      var keys = Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a]; });
+      var fh = '<span class="chip' + (kifuFilter ? '' : ' on') + '" data-tag="">すべて<span class="n">' + list.length + '</span></span>';
+      keys.forEach(function (k) {
+        fh += '<span class="chip' + (kifuFilter === k ? ' on' : '') + '" data-tag="' + esc(k) + '">' +
+          esc(k) + '<span class="n">' + counts[k] + '</span></span>';
+      });
+      fbox.innerHTML = fh;
+    }
+
+    var shown = kifuFilter ? list.filter(function (r) { return (r.tags || []).indexOf(kifuFilter) >= 0; }) : list;
+    if (!shown.length) {
+      box.innerHTML = '<div class="kifu-item"><span class="t">' +
+        (list.length ? 'この条件に合う棋譜はありません' : '保存された棋譜はありません') + '</span></div>';
+      return;
+    }
     var html = '';
-    list.forEach(function (r) {
+    shown.forEach(function (r) {
+      var tags = (r.tags || []).map(function (t) { return '<span>' + esc(t) + '</span>'; }).join('');
       html += '<div class="kifu-item" data-id="' + r.id + '">' +
         '<div class="t"><b>' + esc(r.title || '棋譜') + '</b>' +
-        '<span>' + new Date(r.date).toLocaleString('ja-JP') + '　' + r.moves.length + '手　' + esc(r.result || '') + '</span></div>' +
+        '<span>' + new Date(r.date).toLocaleString('ja-JP') + '　' + r.moves.length + '手　' + esc(r.result || '') + '</span>' +
+        (tags ? '<div class="tags">' + tags + '</div>' : '') + '</div>' +
         '<button class="btn" data-act="load">開く</button>' +
         '<button class="btn danger" data-act="del">削除</button>' +
         '</div>';
@@ -1854,6 +1957,13 @@
           });
           switchTab('kifu');
         });
+    });
+
+    $('kifuFilter').addEventListener('click', function (e) {
+      var c = e.target.closest('.chip');
+      if (!c) return;
+      kifuFilter = c.dataset.tag || '';
+      renderKifuList();
     });
 
     $('kifuList').addEventListener('click', function (e) {

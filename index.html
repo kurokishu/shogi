@@ -88,14 +88,13 @@
     <div class="eval-wrap" id="evalWrap">
       <div class="eval-row">
         <span class="eval-cap">形勢</span>
-        <div class="eval-track">
-          <div class="eval-bar"><div class="fill" id="evalFill"></div></div>
-          <div class="marker" id="evalMarker"></div>
-        </div>
         <span class="eval-num" id="evalText">±0</span><span class="eval-word" id="evalWord"></span>
+        <span class="grow"></span>
+        <button class="icon-btn" id="btnGraph" title="大きく見る" aria-label="大きく見る"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M21 3l-8 8M9 21H3v-6M3 21l8-8"/></svg></button>
         <button class="icon-btn" id="btnEvalHide" title="形勢をかくす" aria-label="形勢をかくす"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       </div>
-      <button class="btn ghost tiny wide" id="btnGraph">形勢の推移グラフを見る</button>
+      <div id="miniGraph"></div>
+      <span id="evalFill" style="display:none"></span><span id="evalMarker" style="display:none"></span>
     </div>
 
     <!-- 操作 -->
@@ -276,6 +275,7 @@
             <button class="btn" id="btnImportKif">KIF/SFENを読む</button>
             <button class="btn" id="btnCopySfen">SFENをコピー</button>
           </div>
+          <div class="chips" id="kifuFilter"></div>
           <div class="list-box" id="kifuList"></div>
         </div>
 
@@ -429,11 +429,13 @@
 </div>
 
 <div class="toast" id="toast"></div>
+<div class="achieve" id="achieve"><div class="ac-kind" id="acKind"></div><div class="ac-name" id="acName"></div><div class="ac-note" id="acNote"></div></div>
 
 <script src="js/book.js"></script>
 <script src="js/shogi.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/strategy.js"></script>
+<script src="js/tactics.js"></script>
 <script src="js/kifu.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/app.js"></script>

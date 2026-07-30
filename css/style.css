@@ -260,6 +260,10 @@ main.layout {
 }
 .eval-row { display: flex; align-items: center; gap: 8px; }
 .eval-cap { font-size: 12px; color: var(--fg-dim); flex: none; }
+.eval-row .grow { flex: 1; }
+#miniGraph { margin-top: 6px; }
+#miniGraph .graph { height: 86px; }
+#miniGraph .graph-legend { display: none; }
 .eval-track { position: relative; flex: 1; padding-bottom: 7px; }
 .eval-bar {
   position: relative; height: 11px; border-radius: 3px; overflow: hidden;
@@ -512,4 +516,33 @@ footer.foot {
   --font-koma: var(--font-ui);
   --koma-weight: 700;
   --koma-size: .575;
+}
+
+/* ---------------- 成立の通知 ---------------- */
+.achieve {
+  position: fixed; left: 50%; top: 22%; transform: translate(-50%, -8px) scale(.96);
+  background: var(--card); border: 2px solid var(--accent); border-radius: 14px;
+  padding: 14px 22px; text-align: center; box-shadow: var(--shadow-lg);
+  opacity: 0; pointer-events: none; transition: all .22s cubic-bezier(.2,.8,.3,1); z-index: 210;
+  max-width: 84vw;
+}
+.achieve.on { opacity: 1; transform: translate(-50%, 0) scale(1); }
+.achieve .ac-kind {
+  font-size: 10.5px; letter-spacing: .18em; color: var(--accent); font-weight: 700; margin-bottom: 3px;
+}
+.achieve .ac-name { font-size: 21px; font-weight: 800; letter-spacing: .04em; }
+.achieve .ac-note { font-size: 11.5px; color: var(--fg-dim); margin-top: 4px; }
+
+/* ---------------- 絞り込みチップ ---------------- */
+.chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.chip {
+  font-size: 11px; padding: 5px 10px; border-radius: 99px; cursor: pointer;
+  background: var(--bg); border: 1px solid var(--line); color: var(--fg-dim); white-space: nowrap;
+}
+.chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.chip .n { opacity: .7; margin-left: 3px; }
+.kifu-item .tags { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
+.kifu-item .tags span {
+  font-size: 9.5px; padding: 1px 6px; border-radius: 99px;
+  background: var(--bg); border: 1px solid var(--line); color: var(--fg-dim);
 }
