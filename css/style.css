@@ -59,8 +59,8 @@
   --font: var(--font-ui);
   /* 駒の書体（既定：楷書）。data-koma で切り替える */
   --font-koma: "KomaKaisho", "Hiragino Mincho ProN", serif;
-  --koma-weight: 400;
-  --koma-size: .58;
+  --koma-weight: 600;
+  --koma-size: .615;
 }
 
 :root[data-theme="dark"] {
@@ -501,15 +501,15 @@ footer.foot {
 :root[data-koma="brush"] {
   --font-koma: "KomaBrush", "Hiragino Mincho ProN", serif;
   --koma-weight: 400;
-  --koma-size: .62;
+  --koma-size: .655;
 }
 :root[data-koma="mincho"] {
   --font-koma: "Hiragino Mincho ProN", "Yu Mincho", serif;
   --koma-weight: 600;
-  --koma-size: .58;
+  --koma-size: .615;
 }
 :root[data-koma="gothic"] {
   --font-koma: var(--font-ui);
   --koma-weight: 700;
-  --koma-size: .54;
+  --koma-size: .575;
 }
