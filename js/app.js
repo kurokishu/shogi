@@ -143,6 +143,32 @@
   /* 大会ルール設定  time: 持ち時間(秒, 0で無制限) / byoyomi: 秒読み(秒) */
   var RULES = { foulLoss: true, maxMoves: 256, time: 0, byoyomi: 0 };
 
+  /* 表示設定（形勢を見せるかどうか。記録自体は常に行う） */
+  var VIEW_KEY = 'shogi_view_v1';
+  var VIEW = { showEval: true };
+  (function loadView() {
+    try {
+      var v = JSON.parse(localStorage.getItem(VIEW_KEY) || 'null');
+      if (v && typeof v.showEval === 'boolean') VIEW.showEval = v.showEval;
+    } catch (e) { }
+  })();
+  function saveView() {
+    try { localStorage.setItem(VIEW_KEY, JSON.stringify(VIEW)); } catch (e) { }
+  }
+
+  /* 形勢に関わる表示のオン・オフをまとめて切り替える */
+  function applyViewSetting() {
+    var on = VIEW.showEval;
+    $('evalWrap').style.display = on ? '' : 'none';
+    $('engScore').textContent = on ? $('engScore').textContent : '—';
+    var pv = $('engPv');
+    if (!on) pv.textContent = '（形勢をかくす設定です）';
+    var segs = document.querySelectorAll('[data-evalshow]');
+    for (var i = 0; i < segs.length; i++) {
+      segs[i].classList.toggle('on', (segs[i].dataset.evalshow === '1') === on);
+    }
+  }
+
   /* 2台対戦 */
   var NET = { on: false, room: null, token: null, side: 0, version: 0, names: {}, aborter: null };
 
@@ -298,7 +324,7 @@
       var ja = mv.ja || S.moveToJa(p, mv.m, prevTo, {});
       mv.ja = ja;
       var ev = '', tag = '';
-      if (G.analysis && G.analysis.acc && G.analysis.acc[i] !== undefined) {
+      if (VIEW.showEval && G.analysis && G.analysis.acc && G.analysis.acc[i] !== undefined) {
         var sc = G.analysis.blackScore[i + 1];
         ev = (sc > 0 ? '+' : '') + sc;
         var t = G.analysis.tags[i];
@@ -372,12 +398,15 @@
       $('engNodes').textContent = d.nodes.toLocaleString() + ' 手' + (nps ? '（' + Math.round(nps / 1000) + 'k/秒）' : '');
     }
     if (d.score !== undefined) {
-      var s = d.score;
-      var txt = Math.abs(s) > E.MATE - 500 ? (s > 0 ? '詰みあり' : '詰まされる') : ((s > 0 ? '+' : '') + s);
-      $('engScore').textContent = txt + '（手番側から見て）';
+      if (!VIEW.showEval) $('engScore').textContent = '—';
+      else {
+        var s = d.score;
+        var txt = Math.abs(s) > E.MATE - 500 ? (s > 0 ? '詰みあり' : '詰まされる') : ((s > 0 ? '+' : '') + s);
+        $('engScore').textContent = txt + '（手番側から見て）';
+      }
     }
     if (d.pv && d.pv.length) {
-      $('engPv').textContent = pvToJa(d.pv);
+      $('engPv').textContent = VIEW.showEval ? pvToJa(d.pv) : '（形勢をかくす設定です）';
     }
   }
 
@@ -1216,6 +1245,11 @@
   function renderAnalysisOut() {
     var A = G.analysis;
     if (!A) { $('analyzeOut').innerHTML = ''; return; }
+    if (!VIEW.showEval) {
+      $('analyzeOut').innerHTML = '<div class="notice">形勢を「かくす」設定のため、解析結果は表示していません。' +
+        '<b>解析結果は保存済み</b>なので、「表示」を「表示する」に戻すとそのまま見られます。</div>';
+      return;
+    }
     var N = G.moves.length;
     function blank() { return { n: 0, accSum: 0, lossSum: 0, lossN: 0, match: 0, bad: 0, blunder: 0 }; }
     var stats = { 1: blank(), '-1': blank() };
@@ -1449,6 +1483,14 @@
       if (t.dataset.netside !== undefined) netSideSetting = parseInt(t.dataset.netside, 10);
       if (t.dataset.foul !== undefined) { RULES.foulLoss = t.dataset.foul === '1'; clearSel(); refresh(); }
       if (t.dataset.maxmoves !== undefined) RULES.maxMoves = parseInt(t.dataset.maxmoves, 10);
+      if (t.dataset.evalshow !== undefined) {
+        VIEW.showEval = t.dataset.evalshow === '1';
+        saveView();
+        applyViewSetting();
+        renderMoveList();
+        renderAnalysisOut();
+        U.toast(VIEW.showEval ? '形勢を表示します' : '形勢をかくします（記録は続けています）');
+      }
       if (t.dataset.tc !== undefined) {
         var parts = String(t.dataset.tc).split(':');
         RULES.time = parseInt(parts[0], 10) || 0;
@@ -1705,8 +1747,17 @@
   function setupOffline() {
     var badge = $('offlineBadge');
     if (!('serviceWorker' in navigator)) {
-      badge.textContent = 'オフライン：非対応';
-      badge.title = 'このブラウザはオフライン保存に対応していません';
+      // iPhoneのChrome/Firefox/Edgeはオフライン保存に対応していない
+      var ua = navigator.userAgent;
+      if (/CriOS|FxiOS|EdgiOS/.test(ua)) {
+        badge.textContent = 'Safariで開いてください';
+        badge.title = 'iPhoneでは Safari で開くと、オフライン保存とホーム画面への追加ができます';
+        badge.style.borderColor = 'rgba(255,184,77,.6)';
+        badge.style.color = 'var(--accent2)';
+      } else {
+        badge.textContent = 'オフライン：非対応';
+        badge.title = 'このブラウザはオフライン保存に対応していません';
+      }
       return;
     }
     if (location.protocol === 'file:') {
@@ -1732,6 +1783,7 @@
     G.keys[0] = G.pos.posKey();
     resetClocks();
     syncRuleButtons();
+    applyViewSetting();
     refresh();
     updateRankBadge();
     renderKifuList();

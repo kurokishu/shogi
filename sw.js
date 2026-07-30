@@ -4,7 +4,7 @@
  *   以後は圏外・機内モードでも起動できる。
  *   （2台対戦だけは通信が必要）
  * ========================================================================== */
-var VERSION = 'shogi-v4';
+var VERSION = 'shogi-v5';
 var FILES = [
   './',
   './index.html',
@@ -44,32 +44,41 @@ self.addEventListener('activate', function (e) {
   );
 });
 
+/* 通信できるときは最新を取りに行き、取れなければ保存済みを使う。
+ * （更新がすぐ届き、圏外でも起動できる） */
 self.addEventListener('fetch', function (e) {
   var req = e.request;
   if (req.method !== 'GET') return;
   var url = new URL(req.url);
 
-  // 2台対戦の通信はキャッシュしない（常に最新をとりにいく）
+  // 2台対戦の通信はキャッシュを挟まない
   if (url.pathname.indexOf('/api/') === 0) return;
   if (url.origin !== self.location.origin) return;
 
   e.respondWith(
-    caches.match(req).then(function (hit) {
-      if (hit) {
-        // 裏で新しいものを取りに行き、次回から差し替える
-        fetch(req).then(function (res) {
-          if (res && res.ok) caches.open(VERSION).then(function (c) { c.put(req, res.clone()); });
-        }).catch(function () { });
-        return hit;
-      }
-      return fetch(req).then(function (res) {
+    new Promise(function (resolve) {
+      var settled = false;
+      function done(res) { if (!settled) { settled = true; resolve(res); } }
+
+      // 3秒で応答が無ければ保存済みに切り替える（電波が弱くても待たされない）
+      var timer = setTimeout(function () {
+        caches.match(req).then(function (hit) { if (hit) done(hit); });
+      }, 3000);
+
+      fetch(req).then(function (res) {
+        clearTimeout(timer);
         if (res && res.ok) {
           var copy = res.clone();
           caches.open(VERSION).then(function (c) { c.put(req, copy); });
+          done(res);
+        } else {
+          caches.match(req).then(function (hit) { done(hit || res); });
         }
-        return res;
       }).catch(function () {
-        return caches.match('./index.html');
+        clearTimeout(timer);
+        caches.match(req).then(function (hit) {
+          done(hit || caches.match('./index.html'));
+        });
       });
     })
   );

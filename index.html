@@ -52,7 +52,7 @@
       <div class="clock" id="clockBlack">0:00</div>
     </div>
 
-    <div class="eval-wrap">
+    <div class="eval-wrap" id="evalWrap">
       <div class="eval-bar"><div class="fill" id="evalFill"></div><div class="mid"></div></div>
       <div class="eval-labels">
         <span>後手優勢</span>
@@ -276,6 +276,22 @@
         <button class="btn" id="btnNew">新規対局</button>
       </div>
       <div class="hint" id="statusLine" style="margin-top:8px"></div>
+    </div>
+
+    <!-- 表示設定 -->
+    <div class="card">
+      <h2>表示</h2>
+      <div class="row">
+        <label>形勢の表示</label>
+        <div class="row seg" style="flex:1;margin:0">
+          <div class="seg-btn on" data-evalshow="1">表示する</div>
+          <div class="seg-btn" data-evalshow="0">かくす</div>
+        </div>
+      </div>
+      <div class="hint">
+        「かくす」にすると、形勢バー・評価値・読み筋・評価値グラフが見えなくなります。
+        <b>記録は続けている</b>ので、対局後に「表示する」に戻せば、その対局の形勢グラフも解析結果もそのまま見られます。
+      </div>
     </div>
 
     <!-- ルール設定 -->

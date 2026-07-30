@@ -59,12 +59,15 @@
     }
   }
 
-  /* ---------------- 駒 ---------------- */
+  /* ---------------- 駒 ----------------
+   * 盤の上側にいる方の駒を180度回す（自分の駒は必ず正立して見える）
+   */
   function pieceEl(pc) {
     var p = pc > 0 ? pc : -pc;
-    var ch = S.PIECE_CHAR[p];
-    var e = el('div', 'piece' + (pc < 0 ? ' gote' : '') + (p >= 9 ? ' promo' : ''), ch);
-    return e;
+    var topSide = curFlip ? S.BLACK : S.WHITE;      // 画面の上側にいる手番
+    var isTop = (pc > 0 ? S.BLACK : S.WHITE) === topSide;
+    var cls = 'piece' + (isTop ? ' upside' : '') + (pc < 0 ? ' gote' : ' sente') + (p >= 9 ? ' promo' : '');
+    return el('div', cls, S.PIECE_CHAR[p]);
   }
 
   /* ---------------- 全体描画 ----------------
@@ -73,9 +76,11 @@
    */
   function render(pos, state) {
     state = state || {};
-    var needLabels = curFlip !== !!state.flip;
+    var flipChanged = curFlip !== !!state.flip;
     curFlip = !!state.flip;
-    if (needLabels || !$('fileLabels').children.length) renderLabels();
+    if (flipChanged || !$('fileLabels').children.length) renderLabels();
+    // 盤を反転したら駒の向きも描き直す
+    if (flipChanged) for (var ci = 0; ci < cells.length; ci++) cells[ci].dataset.pc = '';
 
     var destSet = {};
     if (state.dests) for (var i = 0; i < state.dests.length; i++) destSet[state.dests[i]] = 1;
