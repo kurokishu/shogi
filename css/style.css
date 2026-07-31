@@ -547,13 +547,17 @@ footer.foot {
   background: var(--bg); border: 1px solid var(--line); color: var(--fg-dim);
 }
 
-/* ---------------- 特殊駒 ---------------- */
-.piece.special::after {
-  content: ''; position: absolute; right: 8%; top: 12%;
-  width: 15%; height: 15%; border-radius: 50%;
-  background: #2563eb; box-shadow: 0 0 0 1px rgba(255,255,255,.7);
+/* ---------------- 特殊駒（赤い木地で一目で分かるように） ---------------- */
+.piece.special { background-image: url("../img/koma-sp.png"); color: #4a1410; }
+.piece.special.upside { background-image: url("../img/koma-sp-gote.png"); }
+/* 弓兵が「撃てない状態」のときだけ印を出す */
+.piece.special.reload::after {
+  content: ''; position: absolute; right: 10%; top: 14%;
+  width: 14%; height: 14%; border-radius: 50%;
+  background: #d97706; box-shadow: 0 0 0 1px rgba(255,255,255,.8);
 }
-.piece.special.reload::after { background: #d97706; }
+.hand-piece.special .hp-face { background-image: url("../img/koma-sp.png"); color: #4a1410; }
+.hand.gote .hand-piece.special .hp-face { background-image: url("../img/koma-sp-gote.png"); }
 
 /* ---------------- 対局前の確認画面 ---------------- */
 .modal.pre { max-width: 480px; }

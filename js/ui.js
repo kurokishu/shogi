@@ -134,7 +134,8 @@
       if (!n) continue;
       any = true;
       var sel = state.selHand && state.selHand.side === side && state.selHand.pt === pt;
-      html += '<div class="hand-piece' + (sel ? ' sel' : '') + '" data-side="' + side + '" data-pt="' + pt + '">' +
+      var spCls = (S.isSpecial && S.isSpecial(pt)) ? ' special' : '';
+      html += '<div class="hand-piece' + spCls + (sel ? ' sel' : '') + '" data-side="' + side + '" data-pt="' + pt + '">' +
         '<span class="hp-face">' + S.PIECE_CHAR[pt] + '</span>' +
         (n > 1 ? '<span class="cnt">' + n + '</span>' : '') + '</div>';
     }

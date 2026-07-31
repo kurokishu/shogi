@@ -4,7 +4,7 @@
  *   以後は圏外・機内モードでも起動できる。
  *   （2台対戦だけは通信が必要）
  * ========================================================================== */
-var VERSION = 'shogi-v15';
+var VERSION = 'shogi-v16';
 var FILES = [
   './',
   './index.html',
@@ -25,6 +25,8 @@ var FILES = [
   './img/board.png',
   './img/koma.png',
   './img/koma-gote.png',
+  './img/koma-sp.png',
+  './img/koma-sp-gote.png',
   './fonts/koma-brush.woff2',
   './icons/icon-192.png',
   './icons/icon-512.png',

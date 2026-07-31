@@ -82,7 +82,7 @@ function makeBoard(W, H) {
  * 実物の比率に近い五角形：肩が狭く、縦に長い。
  * 面には薄い木目、上端に光、下端に影を入れて厚みを出す。
  */
-function makeKoma(W, H, gote) {
+function makeKoma(W, H, gote, red) {
   var buf = Buffer.alloc(W * H * 4);
   var top = H * 0.030, bottom = H * 0.972;
   var halfTop = W * 0.088;                 // 頭の幅（実物は狭い）
@@ -93,6 +93,11 @@ function makeKoma(W, H, gote) {
   var light = gote ? [238, 226, 203] : [246, 228, 190];
   var dark = gote ? [211, 196, 170] : [223, 196, 148];
   var edge = gote ? [150, 134, 110] : [156, 124, 78];
+  if (red) {                                  // 特殊駒は赤木地にして一目で分かるようにする
+    light = gote ? [239, 199, 191] : [248, 205, 190];
+    dark = gote ? [206, 152, 142] : [216, 156, 132];
+    edge = gote ? [140, 78, 68] : [150, 74, 58];
+  }
 
   function halfW(y) {
     if (y < top || y > bottom) return -1;
@@ -141,6 +146,8 @@ function makeKoma(W, H, gote) {
 writePng(path.join(OUT, 'board.png'), 512, 512, makeBoard(512, 512));
 writePng(path.join(OUT, 'koma.png'), 132, 146, makeKoma(132, 146, false));
 writePng(path.join(OUT, 'koma-gote.png'), 132, 146, makeKoma(132, 146, true));
-['board.png', 'koma.png', 'koma-gote.png'].forEach(function (f) {
+writePng(path.join(OUT, 'koma-sp.png'), 132, 146, makeKoma(132, 146, false, true));
+writePng(path.join(OUT, 'koma-sp-gote.png'), 132, 146, makeKoma(132, 146, true, true));
+['board.png', 'koma.png', 'koma-gote.png', 'koma-sp.png', 'koma-sp-gote.png'].forEach(function (f) {
   console.log('作成: img/' + f + '  ' + fs.statSync(path.join(OUT, f)).size.toLocaleString() + ' バイト');
 });

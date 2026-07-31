@@ -546,6 +546,11 @@
     $('btnResign').disabled = !!G.finished;
     $('btnJishogi').disabled = !!G.finished;
     $('btnDeclare').disabled = !!G.finished;
+    if ($('btnCaptive')) {
+      var side0 = (G.mode === 'net' && NET.on) ? NET.side : (P(1).type === 'human' ? 1 : -1);
+      $('btnCaptive').disabled = !!G.finished || !spRuleOn('exchange') ||
+        !!(G.exchangeUsed && G.exchangeUsed[side0 > 0 ? 1 : '-1']);
+    }
   }
 
   /* 形勢を言葉にする */
@@ -1194,6 +1199,17 @@
 
   function netStartGame(side, state) {
     NET.on = true; NET.side = side; NET.version = 0;
+    // 部屋の初期局面（特殊駒つきの場合がある）を先に取り込む
+    if (state && state.startSfen && state.startSfen !== 'startpos') {
+      G.startSfen = state.startSfen;
+    } else {
+      G.startSfen = START_SFEN;
+    }
+    if (state && state.rules && state.rules.special) {
+      SPECIAL[1] = state.rules.special.b || 'none';
+      SPECIAL['-1'] = state.rules.special.w || 'none';
+    }
+    if (state && state.rules && state.rules.spRules) SP_RULES = state.rules.spRules.slice();
     var me = { type: 'human', name: 'あなた', level: 0 };
     var you = { type: 'human', name: '相手', level: 0 };
     var players = {};
@@ -1201,11 +1217,14 @@
     players[side > 0 ? '-1' : 1] = you;
     G.measure = null;
     G.flip = side < 0;
-    newGame({ mode: 'net', players: players });
+    newGame({ mode: 'net', players: players, startSfen: G.startSfen });
     try { localStorage.setItem(NET_KEY, JSON.stringify({ room: NET.room, token: NET.token, side: side })); } catch (e) { }
     if (state) applyNetState(state);
     netPoll();
     renderNetPanel();
+    if (Sp && (spOf(1) !== 'none' || spOf(-1) !== 'none' || SP_RULES.length)) {
+      showPreGame(function () { });
+    }
   }
 
   function netApplyNames(st) {
@@ -1437,7 +1456,9 @@
     players[mySide > 0 ? 1 : '-1'] = { type: 'human', name: 'あなた', level: 0 };
     players[mySide > 0 ? '-1' : 1] = { type: 'cp', name: 'CP', level: M.level };
     G.flip = mySide < 0;
-    newGame({ mode: 'play', players: players });
+    G.players = players;
+    SPECIAL[1] = spMineSetting; SPECIAL['-1'] = spOppSetting;
+    startWithSpecial({ mode: 'play', players: players });
     renderRankPanel();
     U.toast('第' + (M.index + 1) + '局：あなたは' + (mySide > 0 ? '先手' : '後手') + '／相手は' + E.level(M.level).name);
   }
@@ -1881,6 +1902,14 @@
     document.body.addEventListener('click', function (e) {
       var t = e.target.closest('.seg-btn');
       if (!t) return;
+      // 特殊ルールだけは複数同時に選べるので、排他にしない
+      if (t.dataset.sprule !== undefined) {
+        var rid = t.dataset.sprule, i2 = SP_RULES.indexOf(rid);
+        if (i2 >= 0) SP_RULES.splice(i2, 1); else SP_RULES.push(rid);
+        t.classList.toggle('on', SP_RULES.indexOf(rid) >= 0);
+        updateSpNote();
+        return;
+      }
       var parent = t.parentElement;
       var sibs = parent.querySelectorAll('.seg-btn');
       for (var i = 0; i < sibs.length; i++) sibs[i].classList.remove('on');
@@ -1892,13 +1921,6 @@
       if (t.dataset.netside !== undefined) netSideSetting = parseInt(t.dataset.netside, 10);
       if (t.dataset.foul !== undefined) { RULES.foulLoss = t.dataset.foul === '1'; clearSel(); refresh(); }
       if (t.dataset.maxmoves !== undefined) RULES.maxMoves = parseInt(t.dataset.maxmoves, 10);
-      if (t.dataset.sprule !== undefined) {
-        var rid = t.dataset.sprule, i2 = SP_RULES.indexOf(rid);
-        if (i2 >= 0) { SP_RULES.splice(i2, 1); t.classList.remove('on'); }
-        else { SP_RULES.push(rid); t.classList.add('on'); }
-        // このボタンは他と排他ではないので、共通処理の on 付与を打ち消す
-        setTimeout(function () { t.classList.toggle('on', SP_RULES.indexOf(rid) >= 0); }, 0);
-      }
       if (t.dataset.koma !== undefined && t.classList.contains('seg-btn')) {
         VIEW.koma = t.dataset.koma; saveView(); applyViewSetting();
         U.toast('駒の書体を変えました');
@@ -1940,11 +1962,18 @@
     $('btnNetCreate').addEventListener('click', function () {
       checkNetServer().then(function (info) {
         if (!info) { U.toast('サーバーに接続できません'); return; }
+        // 特殊駒を使う場合は、その初期局面を部屋に渡す（両者で同じ盤にするため）
+        var sfen = 'startpos';
+        if (Sp && (spMineSetting !== 'none' || spOppSetting !== 'none')) {
+          sfen = Sp.startpos(spMineSetting, spOppSetting).toSfen();
+        }
         return api('/api/create', {
           name: $('netName').value || '対局者', side: netSideSetting,
+          startSfen: sfen,
           rules: {
             foulLoss: RULES.foulLoss, maxMoves: RULES.maxMoves,
-            time: RULES.time, byoyomi: RULES.byoyomi
+            time: RULES.time, byoyomi: RULES.byoyomi,
+            special: { b: spMineSetting, w: spOppSetting }, spRules: SP_RULES.slice()
           }
         }).then(function (j) {
           NET.room = j.room; NET.token = j.token;
@@ -2033,9 +2062,8 @@
       G.measure = null;
       G.flip = mySide < 0;
       G.players = players;
-      // 特殊駒は「あなた／相手」の指定を手番に割り当てる
-      SPECIAL[mySide > 0 ? 1 : '-1'] = spMineSetting;
-      SPECIAL[mySide > 0 ? '-1' : 1] = spOppSetting;
+      SPECIAL[1] = spMineSetting;
+      SPECIAL['-1'] = spOppSetting;
       $('menuSheet').classList.remove('on');
       showPreGame(function () {
         startWithSpecial({ mode: 'play', players: players });
@@ -2054,11 +2082,15 @@
         1: { type: 'cp', name: 'CP先手', level: parseInt($('cpLevelB').value, 10) },
         '-1': { type: 'cp', name: 'CP後手', level: parseInt($('cpLevelW').value, 10) }
       };
-      newGame({ mode: 'cpcp', players: players });
+      G.players = players;
+      SPECIAL[1] = spMineSetting; SPECIAL['-1'] = spOppSetting;
       $('menuSheet').classList.remove('on');
-      G.cpcp.running = true;
-      $('btnCpPause').textContent = '一時停止';
-      maybeCpMove();
+      showPreGame(function () {
+        startWithSpecial({ mode: 'cpcp', players: players });
+        G.cpcp.running = true;
+        $('btnCpPause').textContent = '一時停止';
+        maybeCpMove();
+      });
     });
     $('btnCpPause').addEventListener('click', function () {
       if (G.cpcp.running) {
@@ -2084,8 +2116,10 @@
         1: { type: 'human', name: $('nameInB').value || '先手', level: 0 },
         '-1': { type: 'human', name: $('nameInW').value || '後手', level: 0 }
       };
-      newGame({ mode: 'human', players: players });
+      G.players = players;
+      SPECIAL[1] = spMineSetting; SPECIAL['-1'] = spOppSetting;
       $('menuSheet').classList.remove('on');
+      showPreGame(function () { startWithSpecial({ mode: 'human', players: players }); });
     });
 
     $('btnRankStart').addEventListener('click', function () {
@@ -2191,6 +2225,7 @@
     $('btnFlip').addEventListener('click', function () { G.flip = !G.flip; refresh(); });
     $('btnDeclare').addEventListener('click', declare);
     $('btnJishogi').addEventListener('click', jishogi);
+    $('btnCaptive').addEventListener('click', captiveExchange);
     $('btnResign').addEventListener('click', resign);
     $('btnNew').addEventListener('click', function () {
       var netOn = G.mode === 'net' && NET.on;
@@ -2229,13 +2264,15 @@
   function updateSpNote() {
     if (!$('spNote') || !Sp) return;
     var parts = [];
-    [['あなた', spMineSetting], ['相手', spOppSetting]].forEach(function (e) {
+    [['先手', spMineSetting], ['後手', spOppSetting]].forEach(function (e) {
       var d = Sp.get(e[1]);
       if (d.id !== 'none') parts.push('<b>' + e[0] + '：' + d.name + '</b>（' + d.swap + '）' + d.move);
     });
     $('spNote').innerHTML = parts.length
-      ? parts.join('<br>') + '<br>対局開始前に、双方の駒の能力が10秒間表示されます。'
-      : '特殊駒は1局に1個まで。強さに応じて元の駒と交換します。「なし」なら通常の将棋です。';
+      ? parts.join('<br>') + '<br>対局開始前に、双方の駒の能力が10秒間表示されます。' +
+        (SP_RULES.length ? '' : '<br>特殊ルールは使いません。')
+      : '特殊駒は1局に1個まで。強さに応じて元の駒と交換します。<br>' +
+        '駒と特殊ルールは別々に選べます（駒だけ／ルールだけ、も可能）。';
   }
 
   function updateStratNote() {
