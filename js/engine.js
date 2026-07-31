@@ -127,7 +127,7 @@
   /* ---------------- 駒の価値 ---------------- */
   //           空  歩  香  桂  銀  金   角  飛   玉    と  杏   圭   全   -    馬    竜
   var V = [0, 100, 350, 420, 550, 600, 820, 980, 20000, 610, 560, 560, 610, 0, 1080, 1250,
-    /*16 騎士*/ 700, /*17 忍*/ 340, /*18 風車(飛)*/ 800, /*19 風車(角)*/ 760,
+    /*16 騎士*/ 700, /*17 忍*/ 340, /*18 風車(飛)*/ 790, /*19 風車(角)*/ 790,
     /*20 弓兵(撃可)*/ 480, /*21 弓兵(要移動)*/ 430, /*22 転生兵*/ 650, 0,
     /*24 成騎士*/ 620, /*25 成忍*/ 600, 0, 0, 0, 0, /*30 成転生*/ 620, 0];
   var VH = [0, 118, 400, 470, 610, 660, 920, 1090, 0]; // 持駒（打てる分だけ価値が高い）
@@ -163,13 +163,15 @@
           case NY: case NK: v = (7 - y) * 6 + center[x] + 8; break;
           case UM: v = center[x] * 2 + 24; break;
           case RY: v = center[x] * 2 + adv * 3 + 24; break;
-          case 16: v = adv * 6 + center[x]; break;                 // 騎士
-          case 17: v = adv * 5; break;                             // 忍
-          case 18: v = adv * 4 + center[x]; break;                 // 風車（飛）
-          case 19: v = center[x] * 2 + adv * 3; break;             // 風車（角）
-          case 20: case 21: v = adv * 4 + center[x]; break;        // 弓兵
-          case 22: v = adv * 6 + center[x]; break;                 // 転生兵
-          case 24: case 25: case 30: v = (7 - y) * 6 + center[x] + 12; break;
+          /* 特殊駒は 1局1枚しかない切り札なので、盤の奥で働かせるほど価値が出る。
+             動かさないまま終わると、交換で失った駒のぶんだけ損になる。 */
+          case 16: v = adv * 16 + center[x] * 2 + 30; break;        // 騎士
+          case 17: v = adv * 14 + center[x] + 25; break;            // 忍
+          case 18: v = adv * 9 + center[x] * 2 + 25; break;         // 風車（飛）
+          case 19: v = adv * 8 + center[x] * 3 + 25; break;         // 風車（角）
+          case 20: case 21: v = adv * 13 + center[x] * 2 + 25; break; // 弓兵
+          case 22: v = adv * 13 + center[x] * 2 + 25; break;        // 転生兵
+          case 24: case 25: case 30: v = (7 - y) * 8 + center[x] + 20; break;
         }
         t[sq] = v;
       }
@@ -202,13 +204,14 @@
 
   /* ---------------- 評価関数（先手視点） ---------------- */
   function evaluate(pos) {
-    var b = pos.board, s = 0, sq, pc, p;
+    var b = pos.board, s = 0, sq, pc, p, hasSp = false;
     var bk = pos.kingSq[0], wk = pos.kingSq[1];
     for (sq = 0; sq < 81; sq++) {
       pc = b[sq];
       if (pc === 0) continue;
       if (pc > 0) {
         p = pc;
+        if (p >= 16) hasSp = true;
         s += V[p] + PST[p][sq];
         if (p !== OU) {
           if (wk >= 0) { var d1 = 6 - cheb(sq, wk); if (d1 > 0) s += ATT[p] * d1; }
@@ -216,6 +219,7 @@
         }
       } else {
         p = -pc;
+        if (p >= 16) hasSp = true;
         s -= V[p] + PST[p][MIRROR_SQ[sq]];
         if (p !== OU) {
           if (bk >= 0) { var d3 = 6 - cheb(sq, bk); if (d3 > 0) s -= ATT[p] * d3; }
@@ -225,6 +229,28 @@
       // 大駒の利きの広さ
       if (p === HI || p === RY || p === 18) s += (pc > 0 ? 1 : -1) * mobility(b, sq, ORTH) * 4;
       if (p === KA || p === UM || p === 19) s += (pc > 0 ? 1 : -1) * mobility(b, sq, DIAG) * 4;
+    }
+    // 特殊駒が自陣の一番奥に居座っているうちは、その価値を割り引く（特殊駒モードのときだけ）
+    if (hasSp) for (var hs = 0; hs < 81; hs++) {
+      var hv = b[hs];
+      if (hv === 0) continue;
+      var hp = hv > 0 ? hv : -hv;
+      if (hp < 16) continue;
+      var hy = (hs / 9) | 0;
+      var home = hv > 0 ? (hy >= 7) : (hy <= 1);
+      if (home) s -= (hv > 0 ? 1 : -1) * 90;
+      // 弓兵は「撃てる的があるか」で働きを測る
+      if (hp === 20) {
+        var hx = hs % 9, aim = 0;
+        for (var oi2 = 0; oi2 < 4; oi2++) {
+          var od2 = ORTH[oi2];
+          var ax2 = hx + DX[od2] * 2, ay2 = hy + DY[od2] * 2;
+          if (ax2 < 0 || ax2 > 8 || ay2 < 0 || ay2 > 8) continue;
+          var tv2 = b[ay2 * 9 + ax2];
+          if (tv2 !== 0 && (tv2 > 0) !== (hv > 0)) aim += 22;
+        }
+        s += (hv > 0 ? 1 : -1) * aim;
+      }
     }
     for (var pt = 1; pt <= 7; pt++) {
       var n0 = pos.hands[0][pt], n1 = pos.hands[1][pt];
@@ -572,6 +598,7 @@
     var fy = (from / 9) | 0, ty = (to / 9) | 0;
     var forward = side > 0 ? ty < fy : ty > fy;
     var b = 0;
+    if (p >= 16) return 45;        // 特殊駒は早めに使いたい（1局1枚の切り札）
     if (p === KY) b -= 90;                                   // 序盤に香を動かすことはほぼ無い
     else if (p === KE) b -= 20;                              // 桂もまだ跳ねない
     else if (p === OU) { b -= 12; if (forward) b -= 60; }     // 玉は囲いに入るだけ
