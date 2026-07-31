@@ -4,7 +4,7 @@
  *   以後は圏外・機内モードでも起動できる。
  *   （2台対戦だけは通信が必要）
  * ========================================================================== */
-var VERSION = 'shogi-v17';
+var VERSION = 'shogi-v18';
 var FILES = [
   './',
   './index.html',
@@ -71,16 +71,21 @@ self.addEventListener('fetch', function (e) {
       var settled = false;
       function done(res) { if (!settled) { settled = true; resolve(res); } }
 
-      // 3秒で応答が無ければ保存済みに切り替える（電波が弱くても待たされない）
+      // 応答が無ければ保存済みに切り替える（電波が弱くても待たされない）
+      // サーバーがスリープから起きるのに時間がかかることがあるので、少し長めに待つ
       var timer = setTimeout(function () {
         caches.match(req).then(function (hit) { if (hit) done(hit); });
-      }, 3000);
+      }, 9000);
 
       fetch(req).then(function (res) {
         clearTimeout(timer);
         if (res && res.ok) {
           var copy = res.clone();
-          caches.open(VERSION).then(function (c) { c.put(req, copy); });
+          var wasStale = settled;      // 既に保存済みを返した後に、新しいものが届いた
+          caches.open(VERSION).then(function (c) {
+            c.put(req, copy);
+            if (wasStale) notifyUpdate();
+          });
           done(res);
         } else {
           caches.match(req).then(function (hit) { done(hit || res); });
@@ -94,6 +99,13 @@ self.addEventListener('fetch', function (e) {
     })
   );
 });
+
+/* 古い内容を返した後に新しいものが届いたら、画面側に知らせる */
+function notifyUpdate() {
+  self.clients.matchAll({ type: 'window' }).then(function (cs) {
+    cs.forEach(function (c) { c.postMessage({ type: 'updated' }); });
+  });
+}
 
 self.addEventListener('message', function (e) {
   if (e.data === 'skipWaiting') self.skipWaiting();

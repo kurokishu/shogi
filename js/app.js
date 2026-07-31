@@ -2319,6 +2319,18 @@
       badge.title = 'ファイルを直接開いているため、オフライン保存は使えません';
       return;
     }
+    // 古い内容を表示してしまった場合は、新しいものが届き次第 1回だけ読み込み直す
+    navigator.serviceWorker.addEventListener('message', function (e) {
+      if (!e.data || e.data.type !== 'updated') return;
+      var key = 'shogi_reloaded_once';
+      try {
+        if (sessionStorage.getItem(key)) return;
+        sessionStorage.setItem(key, '1');
+      } catch (err) { return; }
+      U.toast('新しい版に更新します…');
+      setTimeout(function () { location.reload(); }, 900);
+    });
+
     navigator.serviceWorker.register('sw.js').then(function () {
       return navigator.serviceWorker.ready;
     }).then(function () {
