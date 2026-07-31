@@ -143,6 +143,18 @@
           <div class="row"><label>先手の戦法</label><select id="stratB"></select></div>
           <div class="row"><label>後手の戦法</label><select id="stratW"></select></div>
           <div class="hint" id="stratNote"></div>
+          <h3>特殊駒モード</h3>
+          <div class="row"><label>あなたの駒</label><select id="spMine"></select></div>
+          <div class="row"><label>相手の駒</label><select id="spOpp"></select></div>
+          <div class="row">
+            <label>特殊ルール</label>
+            <div class="row seg wrap" style="flex:1;margin:0">
+              <div class="seg-btn" data-sprule="hourglass">砂時計</div>
+              <div class="seg-btn" data-sprule="exchange">捕虜交換</div>
+              <div class="seg-btn" data-sprule="lastStand">決死作戦</div>
+            </div>
+          </div>
+          <div class="hint" id="spNote"></div>
           <button class="btn primary wide" id="btnStartPlay">この設定で対局開始</button>
           <div class="hint">「待った」「ヒント」は自由に使えます（段位測定中は使えません）。</div>
         </div>
@@ -428,6 +440,20 @@
   </div>
 </div>
 
+<!-- 対局前の確認 -->
+<div class="overlay" id="preOverlay">
+  <div class="modal pre">
+    <h3>まもなく対局開始</h3>
+    <div class="pre-grid">
+      <div class="pre-side" id="preBlack"></div>
+      <div class="pre-side" id="preWhite"></div>
+    </div>
+    <div id="preRules"></div>
+    <div class="pre-count"><span id="preCount">10</span> 秒後に開始</div>
+    <div class="actions"><button class="btn primary wide" id="btnPreStart">すぐ始める</button></div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 <div class="achieve" id="achieve"><div class="ac-kind" id="acKind"></div><div class="ac-name" id="acName"></div><div class="ac-note" id="acNote"></div></div>
 
@@ -436,6 +462,7 @@
 <script src="js/engine.js"></script>
 <script src="js/strategy.js"></script>
 <script src="js/tactics.js"></script>
+<script src="js/special.js"></script>
 <script src="js/kifu.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/app.js"></script>

@@ -5,7 +5,7 @@
 (function () {
   'use strict';
   var S = window.Shogi, E = window.Engine, K = window.Kifu, U = window.UI,
-    St = window.Strategy, T = window.Tactics;
+    St = window.Strategy, T = window.Tactics, Sp = window.Special;
   var $ = U.$, el = U.el;
 
   /* ==================================================================
@@ -142,6 +142,11 @@
   var netSideSetting = 0;
   /* 戦法（先手／後手）。'auto' は指定なし */
   var STRAT = { 1: 'auto', '-1': 'auto' };
+  /* 特殊駒モード。SPECIAL[手番] = 駒のid、SP_RULES = 適用する特殊ルールのid */
+  var SPECIAL = { 1: 'none', '-1': 'none' };
+  var SP_RULES = [];
+  function spOf(side) { return SPECIAL[side > 0 ? 1 : '-1'] || 'none'; }
+  function spRuleOn(id) { return SP_RULES.indexOf(id) >= 0; }
   function stratOf(side) { return STRAT[side > 0 ? 1 : '-1'] || 'auto'; }
 
   /* 大会ルール設定  time: 持ち時間(秒, 0で無制限) / byoyomi: 秒読み(秒) */
@@ -255,6 +260,7 @@
    * ================================================================== */
   function posAt(n) {
     var p = (G.startSfen === START_SFEN) ? S.startpos() : S.fromSfen(G.startSfen);
+    if (G.rebornStart) p.rebornLeft = [G.rebornStart[0], G.rebornStart[1]];
     for (var i = 0; i < n; i++) p.doMove(G.moves[i].m);
     return p;
   }
@@ -637,6 +643,7 @@
     G.evalHist = [];
     G.tags = { strategy: [], castle: [], technique: [] };
     G.seenTags = {};
+    setupSpecialRules();
     G.startedAt = Date.now();
     G.kifuId = null;
     G.lastMoveAt = Date.now();
@@ -650,6 +657,20 @@
     $('engPv').textContent = '-';
     refresh();
     maybeCpMove();
+  }
+
+  /* 特殊駒を配置した初期局面で対局を始める */
+  function startWithSpecial(opts) {
+    var b = spOf(1), w = spOf(-1);
+    if (Sp && (b !== 'none' || w !== 'none')) {
+      var p0 = Sp.startpos(b, w);
+      opts.startSfen = p0.toSfen();
+      G.rebornStart = [p0.rebornLeft[0], p0.rebornLeft[1]];
+    } else {
+      opts.startSfen = START_SFEN;
+      G.rebornStart = null;
+    }
+    newGame(opts);
   }
 
   function pushMove(m) {
@@ -677,6 +698,7 @@
     var before = G.pos.clone();
     pushMove(m);
     checkAchievements(before, m, G.pos);
+    applySpecialRules();
     if (G.mode === 'net' && NET.on && !fromNet) netSendMove(m, ply);
     var loser = -G.pos.side, winner = G.pos.side;
     refresh();
@@ -706,11 +728,77 @@
     var before = G.pos.clone();
     pushMove(m);
     checkAchievements(before, m, G.pos);
+    applySpecialRules();
     if (G.mode === 'net' && NET.on && !G.netApplying) netSendMove(m, ply);
     var end = detectEnd();
     refresh();
     if (end) { onGameEnd(end); return; }
     scheduleNext();
+  }
+
+  /* ---------------- 特殊ルール ---------------- */
+  function setupSpecialRules() {
+    G.sand = [];
+    if (spRuleOn('hourglass')) {
+      // ランダムに1〜3回、持ち時間を入れ替える手数を決めておく
+      var n = 1 + Math.floor(Math.random() * 3);
+      for (var i = 0; i < n; i++) G.sand.push(20 + Math.floor(Math.random() * 120));
+      G.sand.sort(function (a, b) { return a - b; });
+    }
+    G.exchangeUsed = { 1: false, '-1': false };
+    G.lastStandDone = false;
+  }
+
+  function applySpecialRules() {
+    // 砂時計：決めておいた手数で持ち時間を入れ替える
+    if (G.sand && G.sand.length && G.moves.length >= G.sand[0]) {
+      G.sand.shift();
+      var t = G.time[1]; G.time[1] = G.time['-1']; G.time['-1'] = t;
+      var c = G.clocks[1]; G.clocks[1] = G.clocks['-1']; G.clocks['-1'] = c;
+      showAchieve('特殊ルール', '砂時計', '双方の持ち時間が入れ替わりました');
+    }
+    // 決死作戦：双方が秒読みに入ったら盤上の歩がすべて成る
+    if (spRuleOn('lastStand') && !G.lastStandDone && (RULES.time || RULES.byoyomi)) {
+      if (inByoNow(1) && inByoNow(-1)) {
+        G.lastStandDone = true;
+        var n2 = 0;
+        for (var sq2 = 0; sq2 < 81; sq2++) {
+          var v = G.pos.board[sq2];
+          if (v === S.FU || v === -S.FU) { G.pos.board[sq2] = v > 0 ? S.TO : -S.TO; n2++; }
+        }
+        if (n2) { G.pos.computeKey(); showAchieve('特殊ルール', '決死作戦', '盤上の歩 ' + n2 + '枚がすべて成りました'); }
+      }
+    }
+  }
+
+  /* 捕虜交換：同じ点数の持ち駒を1枚ずつ交換する（双方1回まで） */
+  function captiveExchange() {
+    if (!spRuleOn('exchange')) { U.toast('この対局では使えません'); return; }
+    var side = G.mode === 'net' && NET.on ? NET.side : (P(1).type === 'human' ? 1 : -1);
+    if (G.exchangeUsed[side > 0 ? 1 : '-1']) { U.toast('捕虜交換は1局に1回だけです'); return; }
+    var mine = G.pos.hands[side > 0 ? 0 : 1], yours = G.pos.hands[side > 0 ? 1 : 0];
+    var big = [S.HI, S.KA], small = [S.KI, S.GI, S.KE, S.KY, S.FU];
+    var pair = null;
+    [big, small].forEach(function (grp) {
+      if (pair) return;
+      var a = null, b = null;
+      grp.forEach(function (pt) { if (a === null && mine[pt] > 0) a = pt; });
+      grp.forEach(function (pt) { if (b === null && yours[pt] > 0) b = pt; });
+      if (a !== null && b !== null) pair = [a, b];
+    });
+    if (!pair) { U.dialog('捕虜交換', '同じ点数の持ち駒が双方にありません。<br>（飛角どうし、またはそれ以外どうしで交換できます）'); return; }
+    U.dialog('捕虜交換',
+      'あなたの<b>' + S.PIECE_NAME[pair[0]] + '</b>と、相手の<b>' + S.PIECE_NAME[pair[1]] + '</b>を交換します。',
+      [{ label: 'やめる', value: false }, { label: '交換する', cls: 'primary', value: true }])
+      .then(function (yes) {
+        if (!yes) return;
+        mine[pair[0]]--; yours[pair[1]]--;
+        mine[pair[1]]++; yours[pair[0]]++;
+        G.pos.computeKey();
+        G.exchangeUsed[side > 0 ? 1 : '-1'] = true;
+        showAchieve('特殊ルール', '捕虜交換', S.PIECE_NAME[pair[0]] + ' ⇄ ' + S.PIECE_NAME[pair[1]]);
+        refresh();
+      });
   }
 
   /* 次の手番へ（CP対CP のときは指す間隔をあける） */
@@ -1249,6 +1337,69 @@
   }
 
   /* ==================================================================
+   *  対局前の確認画面（10秒で自動開始）
+   * ================================================================== */
+  var preTimer = null, preLeft = 0, preGo = null;
+
+  function moveMapHtml(id) {
+    if (!Sp) return '';
+    var g = Sp.moveMap(id), h = '<div class="mmap">';
+    for (var y = 0; y < 5; y++) for (var x = 0; x < 5; x++) {
+      var v = (x === 2 && y === 2) ? 'c' : (g[y][x] === 1 ? 'm' : g[y][x] === 2 ? 's' : '');
+      h += '<div class="' + v + '"></div>';
+    }
+    return h + '</div>';
+  }
+
+  function preSideHtml(side) {
+    var p = P(side), def = Sp ? Sp.get(spOf(side)) : null;
+    var who = (side > 0 ? '▲先手' : '△後手');
+    var name = p.type === 'cp' ? E.level(p.level).name : p.name;
+    var h = '<div class="who">' + who + '</div><div class="pname">' + esc(name) + '</div>';
+    if (!def || def.id === 'none') {
+      h += '<div class="sp-name" style="color:var(--fg-dim);font-size:14px">特殊駒なし</div>';
+    } else {
+      h += '<div class="sp-name">' + def.name + '</div>' +
+        '<div class="sp-swap">' + def.swap + '</div>' +
+        moveMapHtml(def.id) +
+        '<div class="sp-move">' + def.move + '<br>' + def.note + '</div>';
+    }
+    return h;
+  }
+
+  function showPreGame(start) {
+    if (!$('preOverlay')) { start(); return; }
+    preGo = start;
+    $('preBlack').innerHTML = preSideHtml(1);
+    $('preWhite').innerHTML = preSideHtml(-1);
+    var rl = SP_RULES.map(function (id) {
+      var r = Sp.getRule(id);
+      return r ? '・<b>' + r.name + '</b>　' + r.note : '';
+    }).filter(Boolean);
+    if (RULES.time || RULES.byoyomi) {
+      rl.push('・<b>持ち時間</b>　' + Math.round(RULES.time / 60) + '分' +
+        (RULES.byoyomi ? '＋秒読み' + RULES.byoyomi + '秒' : '切れ負け'));
+    }
+    $('preRules').innerHTML = rl.length ? '<b>この対局のルール</b><br>' + rl.join('<br>') : '';
+    preLeft = 10;
+    $('preCount').textContent = preLeft;
+    $('preOverlay').classList.add('on');
+    clearInterval(preTimer);
+    preTimer = setInterval(function () {
+      preLeft--;
+      $('preCount').textContent = Math.max(0, preLeft);
+      if (preLeft <= 0) closePre(true);
+    }, 1000);
+  }
+
+  function closePre(run) {
+    clearInterval(preTimer);
+    $('preOverlay').classList.remove('on');
+    var f = preGo; preGo = null;
+    if (run && f) f();
+  }
+
+  /* ==================================================================
    *  段位測定
    * ================================================================== */
   var RATING_KEY = 'shogi_rating_v1';
@@ -1741,6 +1892,13 @@
       if (t.dataset.netside !== undefined) netSideSetting = parseInt(t.dataset.netside, 10);
       if (t.dataset.foul !== undefined) { RULES.foulLoss = t.dataset.foul === '1'; clearSel(); refresh(); }
       if (t.dataset.maxmoves !== undefined) RULES.maxMoves = parseInt(t.dataset.maxmoves, 10);
+      if (t.dataset.sprule !== undefined) {
+        var rid = t.dataset.sprule, i2 = SP_RULES.indexOf(rid);
+        if (i2 >= 0) { SP_RULES.splice(i2, 1); t.classList.remove('on'); }
+        else { SP_RULES.push(rid); t.classList.add('on'); }
+        // このボタンは他と排他ではないので、共通処理の on 付与を打ち消す
+        setTimeout(function () { t.classList.toggle('on', SP_RULES.indexOf(rid) >= 0); }, 0);
+      }
       if (t.dataset.koma !== undefined && t.classList.contains('seg-btn')) {
         VIEW.koma = t.dataset.koma; saveView(); applyViewSetting();
         U.toast('駒の書体を変えました');
@@ -1841,6 +1999,25 @@
     fillStrat('stratW', -1);
     updateStratNote();
 
+    /* ---- 特殊駒の選択 ---- */
+    function fillSpecial(id, setter) {
+      var sel = $(id);
+      if (!sel || !Sp) return;
+      sel.innerHTML = '';
+      Sp.PIECES.forEach(function (d) {
+        var o = el('option', null, d.id === 'none' ? 'なし' : d.name + '（' + d.swap + '）');
+        o.value = d.id;
+        sel.appendChild(o);
+      });
+      sel.value = 'none';
+      sel.addEventListener('change', function () { setter(sel.value); updateSpNote(); });
+    }
+    fillSpecial('spMine', function (v) { spMineSetting = v; });
+    fillSpecial('spOpp', function (v) { spOppSetting = v; });
+    updateSpNote();
+
+    $('btnPreStart').addEventListener('click', function () { closePre(true); });
+
     fillLevelSelect('cpLevel', 4);
     fillLevelSelect('cpLevelB', 8);
     fillLevelSelect('cpLevelW', 5);
@@ -1855,9 +2032,15 @@
       players[mySide > 0 ? '-1' : 1] = { type: 'cp', name: 'CP', level: lv };
       G.measure = null;
       G.flip = mySide < 0;
-      newGame({ mode: 'play', players: players });
+      G.players = players;
+      // 特殊駒は「あなた／相手」の指定を手番に割り当てる
+      SPECIAL[mySide > 0 ? 1 : '-1'] = spMineSetting;
+      SPECIAL[mySide > 0 ? '-1' : 1] = spOppSetting;
       $('menuSheet').classList.remove('on');
-      U.toast('あなたは' + (mySide > 0 ? '先手' : '後手') + 'です');
+      showPreGame(function () {
+        startWithSpecial({ mode: 'play', players: players });
+        U.toast('あなたは' + (mySide > 0 ? '先手' : '後手') + 'です');
+      });
     });
 
     $('cpSpeed').addEventListener('input', function () {
@@ -2040,6 +2223,19 @@
       $('clockBlack').textContent = clockText(-topSide);
       checkTimeout();
     }, 500);
+  }
+
+  var spMineSetting = 'none', spOppSetting = 'none';
+  function updateSpNote() {
+    if (!$('spNote') || !Sp) return;
+    var parts = [];
+    [['あなた', spMineSetting], ['相手', spOppSetting]].forEach(function (e) {
+      var d = Sp.get(e[1]);
+      if (d.id !== 'none') parts.push('<b>' + e[0] + '：' + d.name + '</b>（' + d.swap + '）' + d.move);
+    });
+    $('spNote').innerHTML = parts.length
+      ? parts.join('<br>') + '<br>対局開始前に、双方の駒の能力が10秒間表示されます。'
+      : '特殊駒は1局に1個まで。強さに応じて元の駒と交換します。「なし」なら通常の将棋です。';
   }
 
   function updateStratNote() {

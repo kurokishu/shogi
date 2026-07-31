@@ -546,3 +546,33 @@ footer.foot {
   font-size: 9.5px; padding: 1px 6px; border-radius: 99px;
   background: var(--bg); border: 1px solid var(--line); color: var(--fg-dim);
 }
+
+/* ---------------- 特殊駒 ---------------- */
+.piece.special::after {
+  content: ''; position: absolute; right: 8%; top: 12%;
+  width: 15%; height: 15%; border-radius: 50%;
+  background: #2563eb; box-shadow: 0 0 0 1px rgba(255,255,255,.7);
+}
+.piece.special.reload::after { background: #d97706; }
+
+/* ---------------- 対局前の確認画面 ---------------- */
+.modal.pre { max-width: 480px; }
+.pre-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.pre-side {
+  background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px;
+  text-align: center;
+}
+.pre-side .who { font-size: 11px; color: var(--fg-dim); }
+.pre-side .pname { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+.pre-side .sp-name { font-size: 19px; font-weight: 800; margin: 4px 0; }
+.pre-side .sp-swap { font-size: 10.5px; color: var(--accent); font-weight: 700; }
+.pre-side .sp-move { font-size: 11px; color: var(--fg-dim); line-height: 1.5; margin-top: 5px; }
+.mmap { display: grid; grid-template-columns: repeat(5, 15px); gap: 2px; justify-content: center; margin: 6px 0; }
+.mmap div { width: 15px; height: 15px; border-radius: 3px; background: var(--line); }
+.mmap div.c { background: var(--piece-bg2); box-shadow: inset 0 0 0 1px var(--fg-dim); }
+.mmap div.m { background: var(--good); }
+.mmap div.s { background: var(--bad); }
+.pre-count { text-align: center; font-size: 13px; color: var(--fg-dim); margin: 10px 0; }
+.pre-count span { font-family: var(--font-num); font-size: 26px; font-weight: 700; color: var(--accent); }
+#preRules { font-size: 11.5px; color: var(--fg-dim); line-height: 1.7; }
+#preRules b { color: var(--fg); }

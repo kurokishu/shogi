@@ -50,8 +50,8 @@
   var PIECE_CHAR = {
     1: '歩', 2: '香', 3: '桂', 4: '銀', 5: '金', 6: '角', 7: '飛', 8: '玉',
     9: 'と', 10: '杏', 11: '圭', 12: '全', 14: '馬', 15: '竜',
-    16: '騎', 17: '忍', 18: '風', 19: '車', 20: '弓', 21: '矢', 22: '転',
-    24: '騎金', 25: '忍金', 30: '転金'
+    16: '騎', 17: '忍', 18: '飛', 19: '角', 20: '弓', 21: '矢', 22: '転',
+    24: '騎', 25: '忍', 30: '転'
   };
   /* SFEN用の文字。特殊駒はこのアプリ独自の拡張（Y=騎士 D=忍 W/V=風車 A/Q=弓兵 E=転生兵） */
   var USI_CHAR = {
@@ -174,7 +174,7 @@
   function rankOf(sq) { return ((sq / 9) | 0) + 1; }
 
   /* ---------------- Zobrist ---------------- */
-  var ZP = [new Int32Array(32 * 81), new Int32Array(32 * 81)];
+  var ZP = [new Int32Array(64 * 81), new Int32Array(64 * 81)];
   var ZH = [new Int32Array(2 * 8 * 19), new Int32Array(2 * 8 * 19)];
   var ZS = [0, 0];
   (function initZobrist() {
@@ -191,7 +191,7 @@
     ZS[0] = rnd(); ZS[1] = rnd();
     void s;
   })();
-  function pieceIdx(pc) { return pc > 0 ? pc : 16 + (-pc); }
+  function pieceIdx(pc) { return pc > 0 ? pc : 32 + (-pc); }
 
   /* ================================================================
    *  Position
@@ -854,7 +854,9 @@
     var tstr = fileOf(to) + String.fromCharCode(97 + ((to / 9) | 0));
     if (mvIsDrop(m)) return USI_CHAR[mvDropPiece(m)] + '*' + tstr;
     var from = mvFrom(m);
-    return '' + fileOf(from) + String.fromCharCode(97 + ((from / 9) | 0)) + tstr + (mvPromo(m) ? '+' : '');
+    var fstr = '' + fileOf(from) + String.fromCharCode(97 + ((from / 9) | 0));
+    if (mvIsShoot(m)) return fstr + tstr + '!';        // 弓兵の射撃
+    return fstr + tstr + (mvPromo(m) ? '+' : '');
   }
 
   function usiToMove(pos, s) {
@@ -867,7 +869,9 @@
     }
     var f1 = parseInt(s[0], 10), r1 = s.charCodeAt(1) - 97;
     var f2 = parseInt(s[2], 10), r2 = s.charCodeAt(3) - 97;
-    return mkMove(r1 * 9 + (9 - f1), r2 * 9 + (9 - f2), s[4] === '+' ? 1 : 0);
+    var fq = r1 * 9 + (9 - f1), tq = r2 * 9 + (9 - f2);
+    if (s[4] === '!') return mkShoot(fq, tq);
+    return mkMove(fq, tq, s[4] === '+' ? 1 : 0);
   }
 
   /* ---------------- 日本語表記 ----------------
@@ -884,6 +888,9 @@
     else sqStr = (zen ? ZEN_NUM[fileOf(to)] : String(fileOf(to))) + KANJI_NUM[rankOf(to)];
     if (mvIsDrop(m)) {
       return (opt.noMark ? '' : mark) + sqStr + PIECE_NAME[mvDropPiece(m)] + '打';
+    }
+    if (mvIsShoot(m)) {
+      return (opt.noMark ? '' : mark) + sqStr + '弓射';
     }
     var from = mvFrom(m);
     var pc = pos.board[from], p = pc > 0 ? pc : -pc;
@@ -909,6 +916,7 @@
     var to = mvTo(m);
     var sqStr = ZEN_NUM[fileOf(to)] + KANJI_NUM[rankOf(to)];
     if (mvIsDrop(m)) return sqStr + PIECE_NAME[mvDropPiece(m)] + '打';
+    if (mvIsShoot(m)) return sqStr + '弓射(' + fileOf(mvFrom(m)) + rankOf(mvFrom(m)) + ')';
     var from = mvFrom(m);
     var pc = pos.board[from], p = pc > 0 ? pc : -pc;
     var suffix = mvPromo(m) ? '成' : '';

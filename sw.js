@@ -4,7 +4,7 @@
  *   以後は圏外・機内モードでも起動できる。
  *   （2台対戦だけは通信が必要）
  * ========================================================================== */
-var VERSION = 'shogi-v14';
+var VERSION = 'shogi-v15';
 var FILES = [
   './',
   './index.html',
@@ -15,6 +15,7 @@ var FILES = [
   './js/book.js',
   './js/strategy.js',
   './js/tactics.js',
+  './js/special.js',
   './js/kifu.js',
   './js/ui.js',
   './js/app.js',

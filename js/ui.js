@@ -66,7 +66,12 @@
     var p = pc > 0 ? pc : -pc;
     var topSide = curFlip ? S.BLACK : S.WHITE;      // 画面の上側にいる手番
     var isTop = (pc > 0 ? S.BLACK : S.WHITE) === topSide;
-    var cls = 'piece' + (isTop ? ' upside' : '') + (pc < 0 ? ' gote' : ' sente') + (p >= 9 ? ' promo' : '');
+    var isProm = (p >= 9 && p <= 15) || p >= 24;
+    var cls = 'piece' + (isTop ? ' upside' : '') + (pc < 0 ? ' gote' : ' sente') + (isProm ? ' promo' : '');
+    if (S.isSpecial && S.isSpecial(p)) {
+      cls += ' special';
+      if (p === S.ARCHER_M) cls += ' reload';        // 弓兵が撃てない状態
+    }
     var ch = (p === S.OU && pc < 0) ? '王' : S.PIECE_CHAR[p];
     return el('div', cls, ch);
   }
