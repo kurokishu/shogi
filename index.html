@@ -140,12 +140,9 @@
             <select id="cpLevel"></select>
           </div>
           <div class="hint" id="cpLevelNote"></div>
-          <div class="row"><label>先手の戦法</label><select id="stratB"></select></div>
-          <div class="row"><label>後手の戦法</label><select id="stratW"></select></div>
-          <div class="hint" id="stratNote"></div>
           <button class="btn primary wide" id="btnStartPlay">この設定で対局開始</button>
           <div class="hint">「待った」「ヒント」は自由に使えます（段位測定中は使えません）。<br>
-            特殊駒を使うときは、下の「特殊駒モード」で先に選んでください。</div>
+            戦法と特殊駒は、下の設定カードで選んでから開始してください。</div>
         </div>
 
         <!-- CP対CP -->
@@ -163,7 +160,7 @@
             <button class="btn" id="btnCpStep">1手進める</button>
           </div>
           <div class="hint">強さの差を作ると学習になります。例：先手「電脳戦」×後手「アマ上級」。<br>
-            戦法は「対CP戦」タブ、特殊駒は下の「特殊駒モード」の設定が使われます。</div>
+            戦法・特殊駒は、下の設定カードで選んだものが使われます。</div>
         </div>
 
         <!-- 対人戦 -->
@@ -281,6 +278,17 @@
         </div>
 
         <!-- 常設カード -->
+        <div class="card">
+          <h2>戦法（CPが指す序盤の組み立て）</h2>
+          <div class="row"><label>先手の戦法</label><select id="stratB"></select></div>
+          <div class="row"><label>後手の戦法</label><select id="stratW"></select></div>
+          <div class="hint" id="stratNote"></div>
+          <div class="hint">
+            指定した戦法の手が指せるあいだは、その順に組み立てます。相手に妨げられたら通常の読みに戻ります。<br>
+            対CP戦・CP対CPの、CPが指す側に適用されます（あなたが指す側では、その戦法の次の一手をヒントに出します）。
+          </div>
+        </div>
+
         <div class="card">
           <h2>特殊駒モード（すべての対局で使えます）</h2>
           <div class="row"><label>先手の駒</label><select id="spMine"></select></div>
