@@ -18,25 +18,65 @@
   var TO = 9, NY = 10, NK = 11, NG = 12, UM = 14, RY = 15;
   var BLACK = 1, WHITE = -1;
 
+  /* ---------------- 特殊駒 ----------------
+   * 通常の駒は 1〜8（成りは +8 で 9〜15）。
+   * 特殊駒は 16〜22 を使い、成りは同じく +8（24〜30）。
+   * 風車と弓兵は「状態」を持つため、状態ごとに別のコードを割り当てている。
+   */
+  var KNIGHT = 16;    // 騎士：8方向へL字に跳ぶ
+  var NINJA = 17;     // 忍：前1マス／斜め後ろ2マス跳び
+  var WIND_R = 18;    // 風車（飛車の動き。指すと角の動きに変わる）
+  var WIND_B = 19;    // 風車（角行の動き。指すと飛車の動きに変わる）
+  var ARCHER_S = 20;  // 弓兵（射撃できる状態）
+  var ARCHER_M = 21;  // 弓兵（要移動＝撃てない状態）
+  var REBORN = 22;    // 転生兵：取られると自陣に歩として戻る
+  var P_KNIGHT = 24, P_NINJA = 25, P_REBORN = 30;   // それぞれの成り（金の動き）
+
+  function isSpecial(p) { return p >= 16; }
+  /* 風車・弓兵は状態違いを同じ駒として扱うための代表コード */
+  function baseKind(p) {
+    if (p === WIND_B) return WIND_R;
+    if (p === ARCHER_M) return ARCHER_S;
+    return p;
+  }
+
   var PIECE_NAME = {
     1: '歩', 2: '香', 3: '桂', 4: '銀', 5: '金', 6: '角', 7: '飛', 8: '玉',
-    9: 'と', 10: '成香', 11: '成桂', 12: '成銀', 14: '馬', 15: '竜'
+    9: 'と', 10: '成香', 11: '成桂', 12: '成銀', 14: '馬', 15: '竜',
+    16: '騎士', 17: '忍', 18: '風車', 19: '風車', 20: '弓兵', 21: '弓兵', 22: '転生兵',
+    24: '成騎士', 25: '成忍', 30: '成転生'
   };
   // 盤面表示用（1文字）
   var PIECE_CHAR = {
     1: '歩', 2: '香', 3: '桂', 4: '銀', 5: '金', 6: '角', 7: '飛', 8: '玉',
-    9: 'と', 10: '杏', 11: '圭', 12: '全', 14: '馬', 15: '竜'
+    9: 'と', 10: '杏', 11: '圭', 12: '全', 14: '馬', 15: '竜',
+    16: '騎', 17: '忍', 18: '風', 19: '車', 20: '弓', 21: '矢', 22: '転',
+    24: '騎金', 25: '忍金', 30: '転金'
   };
-  var USI_CHAR = { 1: 'P', 2: 'L', 3: 'N', 4: 'S', 5: 'G', 6: 'B', 7: 'R', 8: 'K' };
-  var USI_TO_PIECE = { P: 1, L: 2, N: 3, S: 4, G: 5, B: 6, R: 7, K: 8 };
+  /* SFEN用の文字。特殊駒はこのアプリ独自の拡張（Y=騎士 D=忍 W/V=風車 A/Q=弓兵 E=転生兵） */
+  var USI_CHAR = {
+    1: 'P', 2: 'L', 3: 'N', 4: 'S', 5: 'G', 6: 'B', 7: 'R', 8: 'K',
+    16: 'Y', 17: 'D', 18: 'W', 19: 'V', 20: 'A', 21: 'Q', 22: 'E'
+  };
+  var USI_TO_PIECE = {
+    P: 1, L: 2, N: 3, S: 4, G: 5, B: 6, R: 7, K: 8,
+    Y: 16, D: 17, W: 18, V: 19, A: 20, Q: 21, E: 22
+  };
   var KANJI_NUM = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
   var ZEN_NUM = ['', '１', '２', '３', '４', '５', '６', '７', '８', '９'];
   var HAND_ORDER = [7, 6, 5, 4, 3, 2, 1]; // 飛 角 金 銀 桂 香 歩
 
-  function raw(p) { return p >= 9 ? p - 8 : p; }
+  function raw(p) {
+    if (p >= 24) return p - 8;          // 特殊駒の成り
+    if (p >= 16) return p;              // 特殊駒（成っていない）
+    return p >= 9 ? p - 8 : p;          // 通常の駒
+  }
   function prom(p) { return p + 8; }
   function abs(p) { return p < 0 ? -p : p; }
-  var CAN_PROMO = [0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0];
+  var CAN_PROMO = [0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+    /*16 騎士*/ 1, /*17 忍*/ 1, /*18 風車飛*/ 0, /*19 風車角*/ 0,
+    /*20 弓兵*/ 0, /*21 弓兵*/ 0, /*22 転生兵*/ 1, 0,
+    0, 0, 0, 0, 0, 0, 0, 0];
 
   /* ---------------- 方向テーブル ----------------
    * 0:左上 1:上 2:右上 3:左 4:右 5:左下 6:下 7:右下
@@ -53,8 +93,10 @@
   var ORTH = [1, 3, 4, 6];
 
   var STEPS = [[], []], RAYS = [[], []];
-  var STEPMASK = [new Int32Array(16), new Int32Array(16)];
-  var RAYMASK = [new Int32Array(16), new Int32Array(16)];
+  var STEPMASK = [new Int32Array(32), new Int32Array(32)];
+  var RAYMASK = [new Int32Array(32), new Int32Array(32)];
+  /* 跳ぶ駒の相対座標（先手基準の [dx, dy]）。後手は dy を反転して使う */
+  var JUMPS = [[], []];
   (function buildTables() {
     var base = { steps: {}, rays: {} };
     base.steps[FU] = [1];
@@ -72,8 +114,30 @@
     base.rays[UM] = DIAG; base.steps[UM] = ORTH;
     base.rays[RY] = ORTH; base.steps[RY] = DIAG;
 
+    /* ---- 特殊駒 ---- */
+    base.steps[NINJA] = [1];                 // 忍：前に1マス（跳びは JUMPS で定義）
+    base.steps[P_KNIGHT] = GOLD_STEPS;       // 成騎士＝金
+    base.steps[P_NINJA] = GOLD_STEPS;        // 成忍＝金
+    base.steps[P_REBORN] = GOLD_STEPS;       // 成転生＝金
+    base.steps[REBORN] = [0, 1, 2, 5, 7];    // 転生兵＝銀と同じ
+    base.rays[WIND_R] = ORTH;                // 風車（飛モード）
+    base.rays[WIND_B] = DIAG;                // 風車（角モード）
+    base.steps[ARCHER_S] = DIAG;             // 弓兵の移動＝斜め1マス
+    base.steps[ARCHER_M] = DIAG;
+
+    /* 跳ぶ駒（間の駒を飛び越す）。桂も同じ仕組みに載せる */
+    var baseJumps = {};
+    baseJumps[KE] = [[-1, -2], [1, -2]];
+    baseJumps[KNIGHT] = [[-1, -2], [1, -2], [-2, -1], [2, -1],
+                         [-2, 1], [2, 1], [-1, 2], [1, 2]];
+    baseJumps[NINJA] = [[-2, 2], [2, 2]];    // 斜め後ろへ2マス
+
     for (var ci = 0; ci < 2; ci++) {
-      for (var p = 0; p < 16; p++) {
+      for (var jp = 0; jp < 32; jp++) {
+        var jb = baseJumps[jp];
+        JUMPS[ci][jp] = jb ? jb.map(function (d) { return ci === 0 ? d : [d[0], -d[1]]; }) : [];
+      }
+      for (var p = 0; p < 32; p++) {
         var s = base.steps[p] || [], r = base.rays[p] || [];
         var ms = [], mr = [], i;
         for (i = 0; i < s.length; i++) ms.push(ci === 0 ? s[i] : MIRROR[s[i]]);
@@ -96,6 +160,9 @@
    */
   function mkMove(from, to, promo) { return to | (from << 7) | (promo ? 1 << 14 : 0); }
   function mkDrop(pt, to) { return to | (pt << 15) | (1 << 19); }
+  /* 弓兵の射撃：自分は動かず、離れた駒だけを取る */
+  function mkShoot(from, to) { return to | (from << 7) | (1 << 20); }
+  function mvIsShoot(m) { return (m >> 20) & 1; }
   function mvTo(m) { return m & 127; }
   function mvFrom(m) { return (m >> 7) & 127; }
   function mvPromo(m) { return (m >> 14) & 1; }
@@ -136,6 +203,7 @@
     this.ply = 0;
     this.kingSq = [-1, -1];
     this.keyLo = 0; this.keyHi = 0;
+    this.rebornLeft = [2, 2];      // 転生兵が生き返れる残り回数（先手, 後手）
     this.undoStack = [];
   }
 
@@ -156,6 +224,7 @@
     p.side = this.side; p.ply = this.ply;
     p.kingSq = [this.kingSq[0], this.kingSq[1]];
     p.keyLo = this.keyLo; p.keyHi = this.keyHi;
+    p.rebornLeft = [this.rebornLeft[0], this.rebornLeft[1]];
     return p;
   };
 
@@ -195,11 +264,21 @@
   Position.prototype.isAttacked = function (sq, by) {
     if (sq < 0) return false;
     var b = this.board, x = sq % 9, y = (sq / 9) | 0, ci = by > 0 ? 0 : 1;
-    // 桂馬（跳び）
-    var ky = y + (by > 0 ? 2 : -2);
-    if (ky >= 0 && ky <= 8) {
-      if (x - 1 >= 0 && b[ky * 9 + x - 1] === KE * by) return true;
-      if (x + 1 <= 8 && b[ky * 9 + x + 1] === KE * by) return true;
+    // 跳ぶ駒（桂・騎士・忍）は、その駒から見た相対位置を逆にたどって調べる
+    for (var jp = 0; jp < 32; jp++) {
+      var jl = JUMPS[ci][jp];
+      for (var ji = 0; ji < jl.length; ji++) {
+        var jx = x - jl[ji][0], jy = y - jl[ji][1];
+        if (jx < 0 || jx > 8 || jy < 0 || jy > 8) continue;
+        if (b[jy * 9 + jx] === jp * by) return true;
+      }
+    }
+    // 弓兵の射撃（縦横2マス先。間の駒は飛び越す）
+    for (var ai = 0; ai < 4; ai++) {
+      var ad = ORTH[ai];
+      var ax = x - DX[ad] * 2, ay = y - DY[ad] * 2;
+      if (ax < 0 || ax > 8 || ay < 0 || ay > 8) continue;
+      if (b[ay * 9 + ax] === ARCHER_S * by) return true;
     }
     for (var d = 0; d < 8; d++) {
       var nx = x + DX[d], ny = y + DY[d], dist = 1;
@@ -245,7 +324,7 @@
     var y = (to / 9) | 0;
     if (p === FU || p === KY) return side > 0 ? y === 0 : y === 8;
     if (p === KE) return side > 0 ? y <= 1 : y >= 7;
-    return false;
+    return false;    // 特殊駒は行き所がなくならないので強制成りは無い
   }
 
   function addMove(out, from, to, p, side, captured, capturesOnly) {
@@ -280,16 +359,13 @@
         if (tp !== 0 && (tp > 0) === blackSide) continue;
         addMove(out, sq, t, p, side, tp, capturesOnly);
       }
-      if (p === KE) {
-        ny = y + (blackSide ? -2 : 2);
-        if (ny >= 0 && ny <= 8) {
-          for (var k = -1; k <= 1; k += 2) {
-            nx = x + k; if (nx < 0 || nx > 8) continue;
-            t = ny * 9 + nx; tp = b[t];
-            if (tp !== 0 && (tp > 0) === blackSide) continue;
-            addMove(out, sq, t, p, side, tp, capturesOnly);
-          }
-        }
+      var jm = JUMPS[ci][p];
+      for (i = 0; i < jm.length; i++) {
+        nx = x + jm[i][0]; ny = y + jm[i][1];
+        if (nx < 0 || nx > 8 || ny < 0 || ny > 8) continue;
+        t = ny * 9 + nx; tp = b[t];
+        if (tp !== 0 && (tp > 0) === blackSide) continue;
+        addMove(out, sq, t, p, side, tp, capturesOnly);
       }
       var ry = RAYS[ci][p];
       for (i = 0; i < ry.length; i++) {
@@ -303,6 +379,20 @@
         }
       }
     }
+    // 弓兵の射撃（縦横2マス先の相手の駒を、動かずに取る）
+    for (var asq = 0; asq < 81; asq++) {
+      if (b[asq] !== ARCHER_S * side) continue;
+      var axx = asq % 9, ayy = (asq / 9) | 0;
+      for (var oi = 0; oi < 4; oi++) {
+        var od = ORTH[oi];
+        var tx = axx + DX[od] * 2, ty = ayy + DY[od] * 2;
+        if (tx < 0 || tx > 8 || ty < 0 || ty > 8) continue;
+        var tsq = ty * 9 + tx, tv = b[tsq];
+        if (tv === 0 || (tv > 0) === blackSide) continue;
+        out.push(mkShoot(asq, tsq));
+      }
+    }
+
     if (capturesOnly) return out;
     var h = pos.hands[ci];
     for (var pt = 1; pt <= 7; pt++) {
@@ -332,6 +422,27 @@
     var side = this.side, ci = side > 0 ? 0 : 1;
     var to = mvTo(m), lo = this.keyLo, hi = this.keyHi, k, j;
     var cap = 0, from = -1, movedPiece = 0;
+
+    /* ---- 弓兵の射撃：自分は動かず、相手の駒だけを取る ---- */
+    if (mvIsShoot(m)) {
+      from = mvFrom(m);
+      cap = this.board[to];
+      var rebornInfo = this.captureTo(cap, ci, to);
+      k = pieceIdx(cap) * 81 + to; lo ^= ZP[0][k]; hi ^= ZP[1][k];
+      this.board[to] = 0;
+      // 撃った弓兵は「要移動」状態になる
+      k = pieceIdx(ARCHER_S * side) * 81 + from; lo ^= ZP[0][k]; hi ^= ZP[1][k];
+      this.board[from] = ARCHER_M * side;
+      k = pieceIdx(ARCHER_M * side) * 81 + from; lo ^= ZP[0][k]; hi ^= ZP[1][k];
+      lo ^= ZS[0]; hi ^= ZS[1];
+      this.undoStack.push({ m: m, cap: cap, lo: this.keyLo, hi: this.keyHi,
+                            from: from, piece: ARCHER_M * side, reborn: rebornInfo });
+      this.keyLo = lo | 0; this.keyHi = hi | 0;
+      this.side = -side; this.ply++;
+      return this;
+    }
+
+    var rebornInfo2 = null;
     if (mvIsDrop(m)) {
       var pt = mvDropPiece(m);
       var c = this.hands[ci][pt];
@@ -348,14 +459,23 @@
       k = pieceIdx(pc) * 81 + from; lo ^= ZP[0][k]; hi ^= ZP[1][k];
       if (cap !== 0) {
         k = pieceIdx(cap) * 81 + to; lo ^= ZP[0][k]; hi ^= ZP[1][k];
-        var rp = raw(cap < 0 ? -cap : cap);
-        var hc = this.hands[ci][rp];
-        j = (ci * 8 + rp) * 19 + hc; lo ^= ZH[0][j]; hi ^= ZH[1][j];
-        j = (ci * 8 + rp) * 19 + (hc + 1); lo ^= ZH[0][j]; hi ^= ZH[1][j];
-        this.hands[ci][rp] = hc + 1;
-        if (rp === OU) this.kingSq[ci === 0 ? 1 : 0] = -1;
+        rebornInfo2 = this.captureTo(cap, ci, to);
+        if (!rebornInfo2) {
+          var rp = handKind(cap < 0 ? -cap : cap);
+          var hc = this.hands[ci][rp];
+          j = (ci * 8 + rp) * 19 + hc; lo ^= ZH[0][j]; hi ^= ZH[1][j];
+          j = (ci * 8 + rp) * 19 + (hc + 1); lo ^= ZH[0][j]; hi ^= ZH[1][j];
+          this.hands[ci][rp] = hc + 1;
+          if (rp === OU) this.kingSq[ci === 0 ? 1 : 0] = -1;
+        }
       }
       var np = mvPromo(m) ? (pc > 0 ? prom(pc) : -prom(-pc)) : pc;
+      // 風車は指すたびに飛と角が入れ替わる
+      var apc = np > 0 ? np : -np;
+      if (apc === WIND_R) np = (np > 0 ? WIND_B : -WIND_B);
+      else if (apc === WIND_B) np = (np > 0 ? WIND_R : -WIND_R);
+      // 弓兵は動いたら撃てる状態に戻る
+      else if (apc === ARCHER_M) np = (np > 0 ? ARCHER_S : -ARCHER_S);
       this.board[from] = 0;
       this.board[to] = np;
       k = pieceIdx(np) * 81 + to; lo ^= ZP[0][k]; hi ^= ZP[1][k];
@@ -363,10 +483,51 @@
       movedPiece = np;
     }
     lo ^= ZS[0]; hi ^= ZS[1];
-    this.undoStack.push({ m: m, cap: cap, lo: this.keyLo, hi: this.keyHi, from: from, piece: movedPiece });
+    this.undoStack.push({ m: m, cap: cap, lo: this.keyLo, hi: this.keyHi,
+                          from: from, piece: movedPiece, reborn: rebornInfo2 || null });
     this.keyLo = lo | 0; this.keyHi = hi | 0;
     this.side = -side; this.ply++;
     return this;
+  };
+
+  /* 取られた駒を持ち駒にするときの種類（特殊駒は元の普通の駒に戻る） */
+  var REVERT = {};
+  REVERT[KNIGHT] = KE; REVERT[P_KNIGHT] = KE;
+  REVERT[NINJA] = KY; REVERT[P_NINJA] = KY;
+  REVERT[WIND_R] = KA; REVERT[WIND_B] = KA;
+  REVERT[ARCHER_S] = KE; REVERT[ARCHER_M] = KE;
+  REVERT[REBORN] = KI; REVERT[P_REBORN] = KI;
+  function handKind(p) { return REVERT[p] !== undefined ? REVERT[p] : raw(p); }
+
+  /* 転生兵が取られたときの復活先（自陣の空きマスを中央寄りから探す） */
+  var REBORN_ORDER = [5, 4, 6, 3, 7, 2, 8, 1, 9];
+  Position.prototype.rebornSquare = function (side) {
+    var ranks = side > 0 ? [9, 8, 7] : [1, 2, 3];
+    for (var r = 0; r < 3; r++) {
+      for (var f = 0; f < 9; f++) {
+        var sq2 = sqOf(REBORN_ORDER[f], ranks[r]);
+        if (this.board[sq2] === 0) return sq2;
+      }
+    }
+    return -1;
+  };
+
+  /* 駒を取ったときの共通処理。
+     転生兵なら相手の持ち駒にせず、自陣に歩として戻す（残り回数がある場合）。
+     戻り値は「復活させた」情報（undo 用）。復活しなければ null。 */
+  Position.prototype.captureTo = function (cap, ci, toSq) {
+    if (cap === 0) return null;
+    var owner = cap > 0 ? BLACK : WHITE;      // 取られた側
+    var p = cap > 0 ? cap : -cap;
+    if (p !== REBORN && p !== P_REBORN) return null;
+    var oi = owner > 0 ? 0 : 1;
+    if (this.rebornLeft[oi] <= 0) return null;
+    var sq2 = this.rebornSquare(owner);
+    if (sq2 < 0) return null;
+    this.board[sq2] = FU * owner;
+    this.rebornLeft[oi]--;
+    void ci; void toSq;
+    return { sq: sq2, owner: owner };
   };
 
   /* 手番のみを渡す（null move。探索専用。王手中は使用不可） */
@@ -390,6 +551,24 @@
     this.side = -this.side; this.ply--;
     var side = this.side, ci = side > 0 ? 0 : 1;
     var to = mvTo(m);
+
+    // 転生兵の復活を取り消す
+    if (u.reborn) {
+      this.board[u.reborn.sq] = 0;
+      this.rebornLeft[u.reborn.owner > 0 ? 0 : 1]++;
+    }
+
+    // 弓兵の射撃を取り消す（弓兵は動いていないので、状態だけ戻す）
+    if (mvIsShoot(m)) {
+      this.board[u.from] = ARCHER_S * side;
+      this.board[to] = u.cap;
+      if (u.cap !== 0 && !u.reborn) {
+        this.hands[ci][handKind(u.cap < 0 ? -u.cap : u.cap)]--;
+      }
+      this.keyLo = u.lo; this.keyHi = u.hi;
+      return this;
+    }
+
     if (mvIsDrop(m)) {
       var pt = mvDropPiece(m);
       this.board[to] = 0;
@@ -398,10 +577,15 @@
       var from = mvFrom(m);
       var pc = this.board[to];
       var orig = mvPromo(m) ? (pc > 0 ? raw(pc) : -raw(-pc)) : pc;
+      // 風車・弓兵は状態が変わっているので元に戻す
+      var ao = orig > 0 ? orig : -orig, sgn = orig > 0 ? 1 : -1;
+      if (ao === WIND_B) orig = WIND_R * sgn;
+      else if (ao === WIND_R) orig = WIND_B * sgn;
+      else if (ao === ARCHER_S) orig = ARCHER_M * sgn;
       this.board[from] = orig;
       this.board[to] = u.cap;
-      if (u.cap !== 0) {
-        var rp = raw(u.cap < 0 ? -u.cap : u.cap);
+      if (u.cap !== 0 && !u.reborn) {
+        var rp = handKind(u.cap < 0 ? -u.cap : u.cap);
         this.hands[ci][rp]--;
         if (rp === OU) this.kingSq[ci === 0 ? 1 : 0] = to;
       }
@@ -628,7 +812,8 @@
         if (pc === 0) { empty++; continue; }
         if (empty) { s += empty; empty = 0; }
         var p = pc > 0 ? pc : -pc;
-        var str = (p >= 9 ? '+' : '') + USI_CHAR[raw(p)];
+        var isProm = (p >= 9 && p <= 15) || p >= 24;
+        var str = (isProm ? '+' : '') + USI_CHAR[raw(p)];
         s += pc > 0 ? str : str.toLowerCase();
       }
       if (empty) s += empty;
@@ -752,6 +937,11 @@
     moveToUsi: moveToUsi, usiToMove: usiToMove, moveToJa: moveToJa, moveToKif: moveToKif,
     // ユーティリティ
     raw: raw, prom: prom, inZone: inZone, mustPromote: mustPromote,
+    KNIGHT: KNIGHT, NINJA: NINJA, WIND_R: WIND_R, WIND_B: WIND_B,
+    ARCHER_S: ARCHER_S, ARCHER_M: ARCHER_M, REBORN: REBORN,
+    P_KNIGHT: P_KNIGHT, P_NINJA: P_NINJA, P_REBORN: P_REBORN,
+    isSpecial: isSpecial, baseKind: baseKind, handKind: handKind,
+    mkShoot: mkShoot, mvIsShoot: mvIsShoot,
     foulDrops: foulDrops, FOUL_NAME: FOUL_NAME, points24: points24,
     sqOf: sqOf, fileOf: fileOf, rankOf: rankOf, gameStatus: gameStatus,
     genMoves: genMoves
