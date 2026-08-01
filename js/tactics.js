@@ -83,6 +83,9 @@
     if (f === 8) return { name: '向かい飛車', note: '相手の飛車と向かい合う' };
     if (f === 4) return { name: '右四間飛車', note: '4筋に集中して攻める' };
     if (f === 2) {
+      /* 飛車が2筋にあるのは初期配置と同じ。飛車先も玉もまだ動いていないなら
+         「居飛車に構えた」とは言えないので判定しない（1手目で出てしまうのを防ぐ）。 */
+      if (at(pos, side, 2, 7, FU) && at(pos, side, 5, 9, OU)) return null;
       if (kakuGawari) return { name: '角換わり', note: '角を交換した相居飛車' };
       // 棒銀：右の銀が飛車先へ進んだ形
       if (at(pos, side, 2, 5, GI) || at(pos, side, 2, 6, GI)) {

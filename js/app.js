@@ -142,12 +142,18 @@
   var netSideSetting = 0;
   /* 戦法（先手／後手）。'auto' は指定なし */
   var STRAT = { 1: 'auto', '-1': 'auto' };
+  var CASTLE = { 1: 'auto', '-1': 'auto' };
   /* 特殊駒モード。SPECIAL[手番] = 駒のid、SP_RULES = 適用する特殊ルールのid */
   var SPECIAL = { 1: 'none', '-1': 'none' };
   var SP_RULES = [];
   function spOf(side) { return SPECIAL[side > 0 ? 1 : '-1'] || 'none'; }
   function spRuleOn(id) { return SP_RULES.indexOf(id) >= 0; }
   function stratOf(side) { return STRAT[side > 0 ? 1 : '-1'] || 'auto'; }
+  function castleOf(side) { return CASTLE[side > 0 ? 1 : '-1'] || 'auto'; }
+  /* いま指すべき「戦法または囲い」の手 */
+  function planMove(pos) {
+    return St ? St.nextPlan(pos, stratOf(pos.side), castleOf(pos.side)) : 0;
+  }
 
   /* 大会ルール設定  time: 持ち時間(秒, 0で無制限) / byoyomi: 秒読み(秒) */
   var RULES = { foulLoss: true, maxMoves: 256, time: 0, byoyomi: 0 };
@@ -231,14 +237,13 @@
     if (ca) push('castle', 'castle', ca);
     var te = T.detectTechnique(before, m, after);
     if (te) {
-      // 手筋は何度出てもよいが、通知は同じ名前を続けて出さない
-      var k2 = 'technique:' + who + ':' + te.name + ':' + n;
-      if (!seen['t' + te.name + who] || n - (seen['t' + te.name + who] || -99) > 8) {
-        seen['t' + te.name + who] = n;
-        G.tags.technique.push({ name: te.name, side: side, ply: n });
+      // 記録は毎回残すが、通知は同じ手筋につき片側1回だけ（出過ぎて邪魔になるため）
+      G.tags.technique.push({ name: te.name, side: side, ply: n });
+      var k2 = 't:' + who + ':' + te.name;
+      if (!seen[k2]) {
+        seen[k2] = true;
         showAchieve(who + 'の手筋', te.name, te.note);
       }
-      void k2;
     }
   }
 
@@ -520,7 +525,7 @@
       if (G.pos.inCheck()) s = '<b>王手！</b> ' + s;
       // 戦法を指定していれば、次の一手を助言する
       if (mine && St) {
-        var sug = St.nextMove(G.pos, stratOf(G.pos.side));
+        var sug = planMove(G.pos);
         if (sug) s += '<span class="sub">' + St.get(stratOf(G.pos.side)).name +
           '：' + S.moveToJa(G.pos, sug, -1, {}) + '</span>';
       }
@@ -901,7 +906,7 @@
 
   function thinkAndMove(level) {
     // 戦法が指定されていれば、その手順を優先する
-    var sm = St ? St.nextMove(G.pos, stratOf(G.pos.side)) : 0;
+    var sm = planMove(G.pos);
     if (sm) {
       G.thinking = true;
       renderStatus();
@@ -2089,8 +2094,25 @@
         updateStratNote();
       });
     }
+    function fillCastle(id, side) {
+      var sel = $(id);
+      if (!sel || !St || !St.CASTLE_LIST) return;
+      sel.innerHTML = '';
+      St.CASTLE_LIST.forEach(function (c) {
+        var o = el('option', null, c.name);
+        o.value = c.id;
+        sel.appendChild(o);
+      });
+      sel.value = 'auto';
+      sel.addEventListener('change', function () {
+        CASTLE[side > 0 ? 1 : '-1'] = sel.value;
+        updateStratNote();
+      });
+    }
     fillStrat('stratB', 1);
     fillStrat('stratW', -1);
+    fillCastle('castleB', 1);
+    fillCastle('castleW', -1);
     updateStratNote();
     renderHelp();
 
@@ -2343,12 +2365,23 @@
 
   function updateStratNote() {
     if (!$('stratNote') || !St) return;
-    var b = St.get(stratOf(1)), w = St.get(stratOf(-1));
     var parts = [];
-    if (b.id !== 'auto') parts.push('先手 ' + b.name + '：' + b.note);
-    if (w.id !== 'auto') parts.push('後手 ' + w.name + '：' + w.note);
+    [[1, '先手'], [-1, '後手']].forEach(function (e) {
+      var st = St.get(stratOf(e[0]));
+      var cid = castleOf(e[0]);
+      /* 囲いが「おまかせ」なら、実際に組む囲いの名前を出す */
+      var ca = St.getCastle(cid === 'auto' ? (st.castle || 'auto') : cid);
+      if (st.id === 'auto' && ca.id === 'auto') return;
+      var line = e[1] + ' ';
+      line += st.id === 'auto' ? '戦法おまかせ' : st.name;
+      if (ca.id !== 'auto') {
+        line += ' ＋ ' + ca.name + (cid === 'auto' ? '（自動）' : '');
+      }
+      parts.push(line + '<br><span style="opacity:.75">' +
+        (st.id === 'auto' ? ca.note : st.note) + '</span>');
+    });
     $('stratNote').innerHTML = parts.length
-      ? parts.join('<br>') + '<br>序盤24手までその形に組みます。相手に妨げられたら通常の読みに戻ります。'
+      ? parts.join('<br>')
       : '「おまかせ」は定跡と読みにまかせます。戦法を選ぶと、CPはその形に組みます（あなたの手番なら次の一手を助言します）。';
   }
 

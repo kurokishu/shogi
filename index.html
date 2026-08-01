@@ -359,13 +359,17 @@
 
         <!-- 常設カード -->
         <div class="card">
-          <h2>戦法（CPが指す序盤の組み立て）</h2>
+          <h2>戦法と囲い（CPが指す序盤の組み立て）</h2>
           <div class="row"><label>先手の戦法</label><select id="stratB"></select></div>
-          <div class="row"><label>後手の戦法</label><select id="stratW"></select></div>
+          <div class="row"><label>先手の囲い</label><select id="castleB"></select></div>
+          <div class="row" style="margin-top:10px"><label>後手の戦法</label><select id="stratW"></select></div>
+          <div class="row"><label>後手の囲い</label><select id="castleW"></select></div>
           <div class="hint" id="stratNote"></div>
           <div class="hint">
-            指定した戦法の手が指せるあいだは、その順に組み立てます。相手に妨げられたら通常の読みに戻ります。<br>
-            対CP戦・CP対CPの、CPが指す側に適用されます（あなたが指す側では、その戦法の次の一手をヒントに出します）。
+            <b>戦法</b>で飛車と攻めの形を作り、そのあと<b>囲い</b>で玉を守ります。相手に妨げられたら通常の読みに戻ります。<br>
+            囲いが「おまかせ」なら、その戦法と相性のよい囲いを自動で選びます（四間飛車なら美濃、居飛車なら舟囲いなど）。<br>
+            美濃・高美濃・銀冠・金無双・振り飛車穴熊は<b>振り飛車</b>用です。飛車を振らない戦法と組み合わせると組めません。<br>
+            対CP戦・CP対CPの、CPが指す側に適用されます（あなたが指す側では、次の一手をヒントに出します）。
           </div>
         </div>
 

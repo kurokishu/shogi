@@ -8,7 +8,7 @@ function buildFormation(stratId, side){
   var p=S.startpos();
   if(side<0) p.doNull();                    // 後手番から始める
   for(var i=0;i<20;i++){
-    var m=St.nextMove(p, stratId, 60);
+    var m=St.nextPlan(p, stratId, 'auto', 60);
     if(!m) break;
     p.doMove(m);
     p.doNull();                             // 相手は手を渡す
