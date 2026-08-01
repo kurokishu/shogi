@@ -52,7 +52,7 @@
        後手番は上下左右の反転（初手△3二飛 → 8二玉・7二銀・6三金 → △6二飛）。 */
     { id: 'kurotaki78', name: '黒滝流７八飛', note: '初手7八飛で三間飛車に見せ、右側に高美濃を作りながら右四間へ振り直す。囲いの金がそのまま攻め駒になる',
       castle: 'auto',
-      moves: ['2h7h', '7g7f', '5i4h', '4h3h', '3h2h', '3i3h', '6i5h', '4g4f', '5h4g', '7h4h'] }
+      moves: ['2h7h', '5i4h', '4h3h', '3h2h', '3i3h', '6i5h', '4g4f', '5h4g', '7h4h'] }
   ];
 
   /* 囲い（玉の守り）の組み方。戦法とは別に指定できる。
@@ -124,6 +124,7 @@
     if (!id || id === 'auto') return 0;
     if (pos.ply >= (maxPly === undefined ? 40 : maxPly)) return 0;
     if (pos.inCheck()) return 0;
+    if (tacticalAlert(pos)) return 0;
     var seq = movesFor(id, pos.side);
     if (!seq.length) return 0;
     var legal = pos.legalMoves();
@@ -137,6 +138,30 @@
       return m;
     }
     return 0;
+  }
+
+  /* 手順を機械的に消化してよい局面かどうか。
+     大駒を取られた直後に取り返さず囲いを続ける、といった事故を防ぐ。
+     ここで true を返したときは戦法を離れ、通常の読みにまかせる。 */
+  var VAL = [0, 100, 350, 420, 550, 600, 820, 980, 0, 610, 560, 560, 610, 0, 1080, 1250];
+  function valueOf(p) { return p < VAL.length ? VAL[p] : 700; }   // 特殊駒は一律で高めに見る
+
+  function tacticalAlert(pos) {
+    var side = pos.side, b = pos.board;
+    for (var sq = 0; sq < 81; sq++) {
+      var v = b[sq];
+      if (v === 0) continue;
+      var p = v > 0 ? v : -v;
+      var val = valueOf(p);
+      if ((v > 0) === (side > 0)) {
+        // 自分の銀以上の駒が、ヒモ無しで狙われている
+        if (val >= 550 && pos.isAttacked(sq, -side) && !pos.isAttacked(sq, side)) return true;
+      } else {
+        // 相手の大駒を取れる位置にある（取り返しも含む）
+        if (val >= 820 && pos.isAttacked(sq, side)) return true;
+      }
+    }
+    return false;
   }
 
   /* その手を指すと、動かした駒がすぐ取られてしまうか（ごく簡単な確認） */
@@ -166,6 +191,7 @@
     if (!id || id === 'auto') return 0;
     if (pos.ply >= (maxPly === undefined ? 60 : maxPly)) return 0;
     if (pos.inCheck()) return 0;
+    if (tacticalAlert(pos)) return 0;
     var seq = castleMovesFor(id, pos.side);
     if (!seq.length) return 0;
     var legal = pos.legalMoves();

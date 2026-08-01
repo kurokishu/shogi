@@ -79,6 +79,44 @@ var limit = MINUTES * 60 * 1000;
 var queue = [{ sfen: S.startpos().toSfen(), ply: 0 }];
 var seen = {}, added = 0, searched = 0, offLine = 0;
 
+/* ---- 第1段階：本線を最後まで通す ----
+   幅優先でいきなり枝を広げると、相手の応手が3通りずつ増えて
+   十数手で枝が爆発し、戦法の肝心な手（振り直しなど）まで到達できない。
+   先に「相手は最善で応じる」一本道を最後まで通し、骨格を定跡に入れておく。 */
+(function mainLine() {
+  var pos = S.startpos();
+  var moves = [];
+  for (var ply = 0; ply < MAX_PLY; ply++) {
+    if (S.gameStatus(pos) !== 'ok') break;
+    var mine = (pos.side === HERO);
+    var sm = mine ? St.nextMove(pos, STRAT, MAX_PLY) : 0;
+    var rr = E.think(pos, { level: 10, depth: 16, timeMs: THINK_MS, deterministic: true, useBook: false });
+    searched++;
+    if (!rr.roots || !rr.roots.length) break;
+    var pick = rr.roots[0];
+    if (sm) {
+      var found = null;
+      for (var i = 0; i < rr.roots.length; i++) if (rr.roots[i].m === sm) { found = rr.roots[i]; break; }
+      /* 戦法どおりだと大きく損をするなら、本線でも最善手に切り替える。
+         ここを無条件にすると、相手に暴れられているのに囲いを続けて崩壊する。 */
+      if (found && rr.roots[0].score - found.score <= 700) pick = found;
+    }
+    if (mine) {
+      entries[keyOf(pos)] = [[S.moveToUsi(pos, pick.m), Math.round(pick.score)]];
+      added++;
+    }
+    moves.push(S.moveToJa(pos, pick.m));
+    pos.doMove(pick.m);
+    /* 本線の途中の局面は、あとで枝を広げる出発点にする */
+    queue.push({ sfen: pos.toSfen(), ply: ply + 1 });
+  }
+  console.log('本線（' + added + '手を記録）:');
+  console.log('  ' + moves.join(' ') + '\n');
+  save();
+})();
+
+console.log('第2段階：本線の各局面から、相手の応手を' + WIDTH + '通りずつ広げます\n');
+
 while (queue.length) {
   if (Date.now() - t0 > limit) { console.log('時間切れで打ち切りました'); break; }
   var job = queue.shift();

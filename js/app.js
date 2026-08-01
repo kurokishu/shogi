@@ -91,7 +91,8 @@
         resolve({
           move: r.move ? S.moveToUsi(r.move) : '', best: r.best ? S.moveToUsi(r.best) : '',
           score: r.score, depth: r.depth, nodes: r.nodes, time: r.time,
-          pv: (r.pv || []).map(S.moveToUsi), book: !!r.book
+          pv: (r.pv || []).map(S.moveToUsi), book: !!r.book,
+          roots: (r.roots || []).map(function (x) { return [S.moveToUsi(x.m), x.score]; })
         });
       }, 24);
     });
@@ -926,22 +927,22 @@
     thinkAndMove(p.level);
   }
 
+  /* 戦法どおりの手が、読みの結果と比べて許せる範囲かどうか。
+     手順を機械的に消化すると、相手に暴れられているのに囲いを続ける、といった
+     事故が起きる。読みの最善から離れすぎていたら戦法を離れる。 */
+  var PLAN_MARGIN = 300;
+  function planIsAcceptable(smUsi, r) {
+    if (!r.roots || !r.roots.length) return true;    // 判断材料が無ければ従う
+    var best = r.roots[0][1], mine = null;
+    for (var i = 0; i < r.roots.length; i++) if (r.roots[i][0] === smUsi) { mine = r.roots[i][1]; break; }
+    if (mine === null) return false;                 // 候補に無い＝指せない手
+    return best - mine <= PLAN_MARGIN;
+  }
+
   function thinkAndMove(level) {
-    // 戦法が指定されていれば、その手順を優先する
+    // 戦法が指定されていれば、その手を候補として持っておく（採否は読みのあとで決める）
     var sm = planMove(G.pos);
-    if (sm) {
-      G.thinking = true;
-      renderStatus();
-      setEngineInfo(null, '戦法どおりに指します（' + St.get(stratOf(G.pos.side)).name + '）');
-      var myPly0 = G.moves.length;
-      setTimeout(function () {
-        G.thinking = false;
-        if (G.finished || myPly0 !== G.moves.length) { renderStatus(); return; }
-        $('engDepth').textContent = '戦法'; $('engNodes').textContent = '—';
-        doMove(sm);
-      }, G.mode === 'cpcp' ? 10 : 350);
-      return;
-    }
+    var smUsi = sm ? S.moveToUsi(sm) : '';
     G.thinking = true;
     renderStatus();
     setEngineInfo(null, '考慮中（' + E.level(level).name + '）');
@@ -953,7 +954,15 @@
     }).then(function (r) {
       G.thinking = false;
       if (G.finished || myPly !== G.moves.length) { renderStatus(); return; }
-      setEngineInfo(r, r.book ? '定跡どおりに指しました' : '待機中');
+      /* 戦法の手が読みと大きく食い違わなければ、そちらを採用する */
+      var usedPlan = false;
+      if (sm && planIsAcceptable(smUsi, r)) {
+        usedPlan = true;
+        r = { move: smUsi, score: r.score, depth: r.depth, nodes: r.nodes, time: r.time, pv: [smUsi], roots: r.roots };
+      }
+      setEngineInfo(r, usedPlan ? '戦法どおりに指しました（' + St.get(stratOf(G.pos.side)).name + '）'
+        : (r.book ? '定跡どおりに指しました' : '待機中'));
+      if (usedPlan) { $('engDepth').textContent = '戦法'; }
       if (r.book) { $('engDepth').textContent = '定跡'; $('engNodes').textContent = '—'; }
       if (Math.abs(r.score) < E.MATE - 500) shownEval = r.score * G.pos.side;
       else shownEval = (r.score > 0 ? 1 : -1) * G.pos.side * E.MATE;

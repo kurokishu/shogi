@@ -56,6 +56,8 @@ self.onmessage = function (ev) {
     best: r.best ? S.moveToUsi(r.best) : '',
     score: r.score, depth: r.depth, nodes: r.nodes, time: r.time,
     pv: (r.pv || []).map(S.moveToUsi),
+    /* 各候補手の評価値。戦法どおりに指してよいかの判断に使う */
+    roots: (r.roots || []).map(function (x) { return [S.moveToUsi(x.m), x.score]; }),
     book: !!r.book, aborted: abort
   });
 };
