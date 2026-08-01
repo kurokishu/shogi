@@ -123,6 +123,7 @@
           <button data-tab="net"><span class="tico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2.5" y="4" width="8" height="16" rx="1.6"/><rect x="13.5" y="4" width="8" height="16" rx="1.6"/><path d="M10.5 12h3"/></svg></span>2台で対戦</button>
           <button data-tab="rank"><span class="tico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M4 15a8 8 0 0 1 16 0"/><path d="M12 15 16 9"/><circle cx="12" cy="15" r="1.4"/><path d="M4 19h16"/></svg></span>段位測定</button>
           <button data-tab="kifu"><span class="tico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="4" y="3.5" width="16" height="17" rx="1.6"/><path d="M7 15l3-4 2.5 2.5L17 8"/></svg></span>棋譜・解析</button>
+          <button data-tab="help"><span class="tico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.1 2.8c-.5.2-.7.6-.7 1.1v.6" stroke-linecap="round"/><path d="M12 16.6h.01" stroke-linecap="round" stroke-width="2"/></svg></span>説明</button>
         </nav>
 
         <!-- 対CP戦 -->
@@ -275,6 +276,85 @@
           </div>
           <div class="chips" id="kifuFilter"></div>
           <div class="list-box" id="kifuList"></div>
+        </div>
+
+        <!-- 説明 -->
+        <div class="panel" id="panel-help">
+          <div class="help-sec">
+            <h3>特殊駒</h3>
+            <div class="hint">1局につき1個まで。元の駒と入れ替えて使います。盤の上では<b>赤い駒</b>で表示されます。<br>
+              使うかどうかは、下の「特殊駒モード」で先手・後手それぞれ選びます。対局開始前に、おたがいの駒が10秒間表示されます。</div>
+            <div class="mm-legend"><span class="k c"></span>その駒<span class="k m"></span>動ける<span class="k s"></span>動かずに取れる</div>
+            <div id="helpSpecial"></div>
+          </div>
+
+          <div class="help-sec">
+            <h3>特殊ルール</h3>
+            <div class="hint">おたがいに同じ条件でかかります。いくつでも同時に選べます。</div>
+            <div id="helpSpRules"></div>
+          </div>
+
+          <div class="help-sec">
+            <h3>駒の動き（基本）</h3>
+            <div class="mm-legend"><span class="k c"></span>その駒<span class="k m"></span>1マス動ける<span class="k r"></span>その方向にどこまでも</div>
+            <div id="helpBasic"></div>
+          </div>
+
+          <div class="help-sec">
+            <h3>成り</h3>
+            <div class="hint">
+              相手の陣地（自分から見て奥の3段）に<b>入る・出る・その中で動く</b>と、成るかどうかを聞かれます。<br>
+              ・歩・香・桂・銀 → <b>金と同じ動き</b>になります<br>
+              ・角 → <b>馬</b>（角の動き＋前後左右に1マス）<br>
+              ・飛 → <b>竜</b>（飛の動き＋ななめに1マス）<br>
+              ・金と玉は成れません。取った駒は、成っていても<b>元の駒に戻って</b>持ち駒になります
+            </div>
+          </div>
+
+          <div class="help-sec">
+            <h3>持ち駒を打つ</h3>
+            <div class="hint">
+              取った駒は自分の駒として、空いているマスに打てます。打った駒は成っていない状態から始まります。<br>
+              盤の下（相手のぶんは上）に並んでいる持ち駒を選ぶと、打てるマスに緑の印が出ます。
+            </div>
+          </div>
+
+          <div class="help-sec">
+            <h3>やってはいけない手</h3>
+            <div class="hint">
+              ・<b>二歩</b>… 同じ筋（縦の列）に、自分の歩を2枚置くこと<br>
+              ・<b>打ち歩詰め</b>… 歩を打って相手の玉を詰ませること（歩を「動かして」詰ますのは反則ではありません）<br>
+              ・<b>行き所のない駒</b>… 次に動けなくなる場所へ進めたり打ったりすること（1段目の歩・香、1〜2段目の桂）<br>
+              ・<b>王手放置</b>… 王手されているのに、玉が取られる状態のままにすること<br><br>
+              このアプリでは、<b>二歩と打ち歩詰めは実戦どおり「指せてしまい、指した時点で負け」</b>が初期設定です（アマチュア大会と同じ）。
+              緑の印は正しい手にだけ出るので、<b>印の無いマスに置いたら反則</b>だと思ってください。<br>
+              慣れないうちは「ルール」の設定で<b>「指せない」</b>に変えると、そもそも置けなくなります。<br>
+              <b>行き所のない駒</b>と<b>王手放置</b>は、誤操作を防ぐため最初から指せません。
+            </div>
+          </div>
+
+          <div class="help-sec">
+            <h3>勝ち負けの決まり方</h3>
+            <div class="hint">
+              ・<b>詰み</b>… 玉が逃げられず、どうやっても取られる状態。この時点で勝ちです<br>
+              ・<b>投了</b>… 負けを認めて終わること<br>
+              ・<b>反則</b>… 上の「やってはいけない手」を指した側の負け<br>
+              ・<b>時間切れ</b>… 持ち時間を使い切った側の負け（秒読みがある場合は、秒読みを超えたら負け）<br>
+              ・<b>千日手</b>… 同じ局面が4回出たら引き分け。ただし<b>王手を掛け続けて</b>の千日手は、掛けた側の負け<br>
+              ・<b>持将棋（じしょうぎ）</b>… 下の「入玉」を参照
+            </div>
+          </div>
+
+          <div class="help-sec">
+            <h3>入玉と点数（24点法）</h3>
+            <div class="hint">
+              おたがいの玉が相手の陣地に入ると、詰ませるのが難しくなります。この場合は<b>駒の点数</b>で決めます。<br>
+              ・<b>飛車と角＝5点</b>、<b>それ以外＝1点</b>（玉は数えません）<br>
+              ・自分の陣地に入った自分の駒と、持ち駒を合計します<br>
+              ・<b>双方24点以上</b>なら引き分け（持将棋）。<b>片方が24点未満</b>なら、その側の負け<br>
+              画面に「持将棋判定」のボタンが出たら押してください。アマチュア大会と同じ数え方です。
+            </div>
+          </div>
         </div>
 
         <!-- 常設カード -->

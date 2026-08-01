@@ -1370,6 +1370,71 @@
     return h + '</div>';
   }
 
+  /* ---------- 説明タブ ----------
+     特殊駒の説明は special.js の定義から作るので、駒を足しても自動で載る。 */
+
+  /* 通常の駒の利きを 5×5 で表す。1=1マス動ける / 3=その方向にどこまでも */
+  var BASIC_MOVES = [
+    { name: '歩', note: '前に1マス。成ると「と金」で金と同じ動き', step: [[0, -1]] },
+    { name: '香', note: '前にどこまでも。後ろへは戻れない', ray: [[0, -1]] },
+    { name: '桂', note: '前へ2つ・横へ1つ跳ぶ。駒を飛び越せる唯一の駒', step: [[-1, -2], [1, -2]] },
+    { name: '銀', note: '前と、ななめ4方向。真横と真後ろへは行けない', step: [[0, -1], [-1, -1], [1, -1], [-1, 1], [1, 1]] },
+    { name: '金', note: '前・横・後ろとななめ前。ななめ後ろへは行けない', step: [[0, -1], [-1, -1], [1, -1], [-1, 0], [1, 0], [0, 1]] },
+    { name: '角', note: 'ななめにどこまでも。成ると「馬」', ray: [[-1, -1], [1, -1], [-1, 1], [1, 1]] },
+    { name: '飛', note: '縦横にどこまでも。成ると「竜」', ray: [[0, -1], [0, 1], [-1, 0], [1, 0]] },
+    { name: '玉', note: '8方向に1マス。取られたら負け', step: [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]] },
+    { name: '馬（角成）', note: '角の動きに、前後左右1マスが加わる', ray: [[-1, -1], [1, -1], [-1, 1], [1, 1]], step: [[0, -1], [0, 1], [-1, 0], [1, 0]] },
+    { name: '竜（飛成）', note: '飛の動きに、ななめ1マスが加わる', ray: [[0, -1], [0, 1], [-1, 0], [1, 0]], step: [[-1, -1], [1, -1], [-1, 1], [1, 1]] }
+  ];
+
+  function basicMapHtml(d) {
+    var g = [];
+    for (var i = 0; i < 5; i++) g.push([0, 0, 0, 0, 0]);
+    (d.step || []).forEach(function (v) {
+      var x = 2 + v[0], y = 2 + v[1];
+      if (x >= 0 && x < 5 && y >= 0 && y < 5) g[y][x] = 1;
+    });
+    (d.ray || []).forEach(function (v) {
+      for (var k = 1; k <= 2; k++) {
+        var x = 2 + v[0] * k, y = 2 + v[1] * k;
+        if (x < 0 || x > 4 || y < 0 || y > 4) break;
+        g[y][x] = (k === 1 && !(d.step || []).length) ? 3 : 3;
+      }
+    });
+    var h = '<div class="mmap">';
+    for (var y2 = 0; y2 < 5; y2++) for (var x2 = 0; x2 < 5; x2++) {
+      var v2 = (x2 === 2 && y2 === 2) ? 'c' : (g[y2][x2] === 1 ? 'm' : g[y2][x2] === 3 ? 'r' : '');
+      h += '<div class="' + v2 + '"></div>';
+    }
+    return h + '</div>';
+  }
+
+  function helpItem(mapHtml, name, sub, desc) {
+    return '<div class="help-item">' + mapHtml +
+      '<div class="ht"><div class="hn">' + name + '</div>' +
+      (sub ? '<div class="hs">' + sub + '</div>' : '') +
+      '<div class="hd">' + desc + '</div></div></div>';
+  }
+
+  function renderHelp() {
+    if (!$('helpSpecial') || !Sp) return;
+    var h = '';
+    Sp.PIECES.forEach(function (def) {
+      if (def.id === 'none') return;
+      h += helpItem(moveMapHtml(def.id), def.name, def.swap, def.move + '<br>' + def.note);
+    });
+    $('helpSpecial').innerHTML = h;
+
+    $('helpSpRules').innerHTML = Sp.RULES.map(function (r) {
+      return '<div class="help-item"><div class="ht"><div class="hn">' + r.name +
+        '</div><div class="hd">' + r.note + '</div></div></div>';
+    }).join('');
+
+    $('helpBasic').innerHTML = BASIC_MOVES.map(function (d) {
+      return helpItem(basicMapHtml(d), d.name, '', d.note);
+    }).join('');
+  }
+
   function preSideHtml(side) {
     var p = P(side), def = Sp ? Sp.get(spOf(side)) : null;
     var who = (side > 0 ? '▲先手' : '△後手');
@@ -1852,7 +1917,7 @@
   function switchTab(name) {
     var btns = $('tabs').querySelectorAll('button');
     for (var i = 0; i < btns.length; i++) btns[i].classList.toggle('on', btns[i].dataset.tab === name);
-    ['play', 'cpcp', 'human', 'net', 'rank', 'kifu'].forEach(function (t) {
+    ['play', 'cpcp', 'human', 'net', 'rank', 'kifu', 'help'].forEach(function (t) {
       $('panel-' + t).classList.toggle('on', t === name);
     });
     if (name === 'kifu') renderKifuList();
@@ -2027,6 +2092,7 @@
     fillStrat('stratB', 1);
     fillStrat('stratW', -1);
     updateStratNote();
+    renderHelp();
 
     /* ---- 特殊駒の選択 ---- */
     function fillSpecial(id, setter) {
