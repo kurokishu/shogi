@@ -71,11 +71,11 @@
     { id: 3, name: 'アマ中級', note: '駒の損得に敏感。簡単な詰みは見える', bookPly: 12, depth: 3, time: 400, temp: 360, blunder: 0.10, rating: 800 },
     { id: 4, name: 'アマ上級', note: '囲いを作り、寄せの形が分かる', bookPly: 16, depth: 4, time: 700, temp: 200, blunder: 0.05, rating: 1100 },
     { id: 5, name: 'アマ有段者', note: '6手先まで読む。中盤で大きく間違えない', bookPly: 20, depth: 6, time: 1500, temp: 120, blunder: 0.020, rating: 1400 },
-    { id: 6, name: 'アマ強豪', note: '7手先。終盤が正確で、緩手を突いてくる', bookPly: 24, depth: 7, time: 2500, temp: 0, blunder: 0.008, rating: 1750 },
-    { id: 7, name: 'アマトップ', note: '8手先。県代表クラスを想定。ほぼ間違えない', bookPly: 999, depth: 8, time: 4000, temp: 0, blunder: 0.003, rating: 2100 },
-    { id: 8, name: 'プロ', note: '9手先。少しの緩みも見逃さない', bookPly: 999, depth: 9, time: 6000, temp: 0, blunder: 0.001, rating: 2400 },
-    { id: 9, name: 'プロトップ', note: '10手先。手加減は入れていない', bookPly: 999, depth: 10, time: 9000, temp: 0, blunder: 0, rating: 2650 },
-    { id: 10, name: '電脳戦', note: '12手先。全力。1手に10秒以上かかることがある', bookPly: 999, depth: 12, time: 14000, temp: 0, blunder: 0, rating: 2900 }
+    { id: 6, name: 'アマ強豪', note: '終盤が正確で、緩手を突いてくる', bookPly: 24, depth: 24, time: 2500, temp: 0, blunder: 0.008, rating: 1750 },
+    { id: 7, name: 'アマトップ', note: '県代表クラスを想定。ほぼ間違えない', bookPly: 999, depth: 26, time: 6000, temp: 0, blunder: 0.003, rating: 2100 },
+    { id: 8, name: 'プロ', note: '長考する。少しの緩みも見逃さない', bookPly: 999, depth: 28, time: 10000, temp: 0, blunder: 0.001, rating: 2400 },
+    { id: 9, name: 'プロトップ', note: '1手に20秒前後かける', bookPly: 999, depth: 30, time: 20000, temp: 0, blunder: 0, rating: 2650 },
+    { id: 10, name: '電脳戦', note: '全力。1手に40秒近くかかる', bookPly: 999, depth: 32, time: 40000, temp: 0, blunder: 0, rating: 2900 }
   ];
   function level(id) { return LEVELS[Math.max(1, Math.min(LEVELS.length, id | 0)) - 1]; }
 
