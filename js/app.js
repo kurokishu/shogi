@@ -150,9 +150,31 @@
   function spRuleOn(id) { return SP_RULES.indexOf(id) >= 0; }
   function stratOf(side) { return STRAT[side > 0 ? 1 : '-1'] || 'auto'; }
   function castleOf(side) { return CASTLE[side > 0 ? 1 : '-1'] || 'auto'; }
-  /* いま指すべき「戦法または囲い」の手 */
+  /* 戦法ごとの研究定跡（いまは黒滝式82飛のみ）。
+     決まった手順より深く、相手の応手ごとに調べてあるので、こちらを優先する。 */
+  var RESEARCH = {};
+  if (typeof BOOK_KUROTAKI82 !== 'undefined') RESEARCH.kurotaki82 = BOOK_KUROTAKI82;
+
+  function bookKey(pos) {
+    var f = pos.toSfen().split(' ');
+    return f[0] + ' ' + f[1] + ' ' + f[2];
+  }
+  function researchMove(pos) {
+    var r = RESEARCH[stratOf(pos.side)];
+    if (!r) return 0;
+    var e = r.entries[bookKey(pos)];
+    if (!e || !e.length) return 0;
+    var m = S.usiToMove(pos, e[0][0]);
+    if (!m) return 0;
+    var legal = pos.legalMoves();
+    for (var i = 0; i < legal.length; i++) if (legal[i] === m) return m;
+    return 0;
+  }
+
+  /* いま指すべき「研究定跡 → 戦法 → 囲い」の手 */
   function planMove(pos) {
-    return St ? St.nextPlan(pos, stratOf(pos.side), castleOf(pos.side)) : 0;
+    if (!St) return 0;
+    return researchMove(pos) || St.nextPlan(pos, stratOf(pos.side), castleOf(pos.side));
   }
 
   /* 大会ルール設定  time: 持ち時間(秒, 0で無制限) / byoyomi: 秒読み(秒) */

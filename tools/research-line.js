@@ -24,22 +24,27 @@ var WIDTH = parseInt(process.argv[5] || '3', 10);      // 相手の応手をい�
 var MAX_PLY = 40;                                       // 何手目まで研究するか
 var THINK_MS = 3500;                                    // 1局面あたりの読みの長さ
 
-var BOOK_PATH = path.join(__dirname, '..', 'js', 'book.js');
+var BOOK_PATH = path.join(__dirname, '..', 'js', 'book-' + STRAT + '.js');
+var VAR_NAME = 'BOOK_' + STRAT.toUpperCase();
 
 function keyOf(pos) {
   var f = pos.toSfen().split(' ');
   return f[0] + ' ' + f[1] + ' ' + f[2];
 }
 
-/* 既存の定跡を読み込んで、そこに足していく（作り直しではない） */
+/* その戦法の研究定跡を読み込んで、そこに足していく（無ければ新規） */
 function loadBook() {
+  if (!fs.existsSync(BOOK_PATH)) {
+    return { version: 1, built: '', strategy: STRAT, positions: 0, entries: {} };
+  }
   var src = fs.readFileSync(BOOK_PATH, 'utf8');
-  var i = src.indexOf('var BOOK = ');
+  var i = src.indexOf('var ' + VAR_NAME + ' = ');
   var j = src.lastIndexOf('};');
-  var json = src.slice(i + 'var BOOK = '.length, j + 1);
+  var json = src.slice(i + ('var ' + VAR_NAME + ' = ').length, j + 1);
   return JSON.parse(json);
 }
 
+var stName = St.get(STRAT).name;
 var book = loadBook();
 var entries = book.entries;
 var before = Object.keys(entries).length;
@@ -54,16 +59,17 @@ function stamp() {
 function save() {
   book.built = stamp();
   book.positions = Object.keys(entries).length;
-  var out = '/* 自動生成された定跡。tools/build-book.js と tools/research-line.js で作り直せます。\n' +
+  var out = '/* ' + stName + 'の研究定跡。tools/research-line.js で作り直せます。\n' +
+    '   通常の定跡とは別に持ち、この戦法を選んだときだけ使う。\n' +
     '   生成日時: ' + book.built + ' / 収録局面数: ' + book.positions + ' */\n' +
-    '(function (root) {\n  var BOOK = ' + JSON.stringify(book) + ';\n' +
-    '  if (typeof module === "object" && module.exports) module.exports = BOOK;\n' +
-    '  else root.BOOK = BOOK;\n' +
+    '(function (root) {\n  var ' + VAR_NAME + ' = ' + JSON.stringify(book) + ';\n' +
+    '  if (typeof module === "object" && module.exports) module.exports = ' + VAR_NAME + ';\n' +
+    '  else root.' + VAR_NAME + ' = ' + VAR_NAME + ';\n' +
     '})(typeof self !== "undefined" ? self : this);\n';
   fs.writeFileSync(BOOK_PATH, out);
 }
 
-var stName = St.get(STRAT).name;
+console.log('書き出し先: ' + BOOK_PATH);
 console.log('研究: ' + stName + '（' + (HERO > 0 ? '先手' : '後手') + '番）');
 console.log('相手の応手を' + WIDTH + '手ずつ、' + MAX_PLY + '手目まで、1局面' + THINK_MS + 'msで読みます');
 console.log('既存の定跡: ' + before + '局面\n');
