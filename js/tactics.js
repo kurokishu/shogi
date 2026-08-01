@@ -104,9 +104,10 @@
    */
   var VAL = [0, 100, 350, 420, 550, 600, 820, 980, 0, 610, 560, 560, 610, 0, 1080, 1250];
 
-  /* その駒が利かせている相手の駒を集める */
+  /* その駒が利かせている相手の駒を集める。
+     同じ升へは「成」「不成」の2手が出るので、升ごとに1回だけ数える。 */
   function targets(pos, from, side) {
-    var out = [], ms = [];
+    var out = [], seen = {}, ms = [];
     var save = pos.side;
     pos.side = side;
     S.genMoves(pos, ms, false);
@@ -114,12 +115,14 @@
     for (var i = 0; i < ms.length; i++) {
       if (S.mvIsDrop(ms[i]) || S.mvFrom(ms[i]) !== from) continue;
       var to = S.mvTo(ms[i]), v = pos.board[to];
-      if (v !== 0 && (v > 0) !== (side > 0)) {
-        out.push(v > 0 ? v : -v);      // 升ごとに数える（同じ種類が2枚でも2件）
-      }
+      if (v === 0 || (v > 0) === (side > 0)) continue;
+      if (seen[to]) continue;
+      seen[to] = 1;
+      out.push(v > 0 ? v : -v);        // 升ごとに1件（同じ種類が2枚なら2件）
     }
     return out;
   }
+
 
   function detectTechnique(before, m, after) {
     var side = before.side;
@@ -138,12 +141,20 @@
     var hits = targets(after, to, side);
     var big = hits.filter(function (p) { return VAL[p] >= 550; });
 
-    // 王手しながら飛車取り
-    if (gaveCheck && hits.some(function (p) { return p === HI || p === RY; })) {
-      return { name: '王手飛車', note: '王手をかけながら飛車を取りにいく' };
-    }
-    if (gaveCheck && hits.some(function (p) { return p === KA || p === UM; })) {
-      return { name: '王手角取り', note: '王手をかけながら角を取りにいく' };
+    // 王手しながら駒取り
+    if (gaveCheck) {
+      if (hits.some(function (p) { return p === HI || p === RY; })) {
+        return { name: '王手飛車', note: '王手をかけながら飛車を取りにいく' };
+      }
+      if (hits.some(function (p) { return p === KA || p === UM; })) {
+        return { name: '王手角取り', note: '王手をかけながら角を取りにいく' };
+      }
+      if (hits.some(function (p) { return p === KI; })) {
+        return { name: '王手金取り', note: '王手をかけながら金を取りにいく' };
+      }
+      if (hits.some(function (p) { return p === GI; })) {
+        return { name: '王手銀取り', note: '王手をかけながら銀を取りにいく' };
+      }
     }
     // 両取り
     if (big.length >= 2) {
