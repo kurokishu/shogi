@@ -9,7 +9,7 @@
  *   相手の手番 : 有力な応手を複数ぶら下げる（外されたときに困らないように）
  *
  *   実行: node tools/research-line.js <戦法id> <先手|後手> [制限分] [応手の幅]
- *   例  : node tools/research-line.js kurotaki82 後手 25 3
+ *   例  : node tools/research-line.js kurotaki78 先手 25 3
  * ========================================================================== */
 var fs = require('fs');
 var path = require('path');
@@ -17,7 +17,7 @@ var S = require('../js/shogi.js');
 var E = require('../js/engine.js');
 var St = require('../js/strategy.js');
 
-var STRAT = process.argv[2] || 'kurotaki82';
+var STRAT = process.argv[2] || 'kurotaki78';
 var HERO = (process.argv[3] === '先手' || process.argv[3] === 'b') ? 1 : -1;
 var MINUTES = parseFloat(process.argv[4] || '25');
 var WIDTH = parseInt(process.argv[5] || '3', 10);      // 相手の応手をいくつ調べるか
@@ -109,8 +109,9 @@ while (queue.length) {
       if (r.roots[i].m === stratMove) { keep.push(r.roots[i]); break; }
     }
     if (!keep.length) keep.push({ m: stratMove, score: r.roots[0].score });
-    /* 戦法どおりだと大きく損をする局面なら、研究として意味が無いので最善手に戻す */
-    if (r.roots[0].score - keep[0].score > 200) {
+    /* 戦法どおりだと大きく損をする局面だけ、最善手に戻す。
+       ここを厳しくしすぎると、少しの差ですぐ別の戦型に逸れて研究にならない。 */
+    if (r.roots[0].score - keep[0].score > 700) {
       offLine++;
       keep = [r.roots[0]];
       stratMove = 0;

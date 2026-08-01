@@ -150,10 +150,10 @@
   function spRuleOn(id) { return SP_RULES.indexOf(id) >= 0; }
   function stratOf(side) { return STRAT[side > 0 ? 1 : '-1'] || 'auto'; }
   function castleOf(side) { return CASTLE[side > 0 ? 1 : '-1'] || 'auto'; }
-  /* 戦法ごとの研究定跡（いまは黒滝式82飛のみ）。
+  /* 戦法ごとの研究定跡（いまは黒滝流７八飛のみ）。
      決まった手順より深く、相手の応手ごとに調べてあるので、こちらを優先する。 */
   var RESEARCH = {};
-  if (typeof BOOK_KUROTAKI82 !== 'undefined') RESEARCH.kurotaki82 = BOOK_KUROTAKI82;
+  if (typeof BOOK_KUROTAKI78 !== 'undefined') RESEARCH.kurotaki78 = BOOK_KUROTAKI78;
 
   function bookKey(pos) {
     var f = pos.toSfen().split(' ');
