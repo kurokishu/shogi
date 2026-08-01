@@ -23,7 +23,7 @@ function buildFormation(stratId, side){
  ['ishida','美濃囲い','石田流'],
  ['yagura','矢倉囲い','居飛車'],
  ['ibisha',null,'居飛車'],
- ['kurotaki78','美濃囲い','三間飛車']].forEach(function(c){
+ ['kurotaki78','高美濃囲い','右四間飛車']].forEach(function(c){
   [1,-1].forEach(function(side){
     var p=buildFormation(c[0], side);
     var ca=T.detectCastle(p,side), st=T.detectStrategy(p,side);

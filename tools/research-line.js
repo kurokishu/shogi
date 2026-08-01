@@ -126,10 +126,12 @@ while (queue.length) {
   }
   if (!keep.length) continue;
 
-  entries[key] = keep.map(function (k) {
-    return [S.moveToUsi(k.m), Math.round(k.score)];
-  });
-  added++;
+  if (myTurn) {
+    entries[key] = keep.map(function (k) {
+      return [S.moveToUsi(k.m), Math.round(k.score)];
+    });
+    added++;
+  }
 
   if (job.ply + 1 < MAX_PLY) {
     for (var q = 0; q < keep.length; q++) {
@@ -139,7 +141,7 @@ while (queue.length) {
     }
   }
 
-  if (added % 10 === 0) {
+  if (myTurn && added % 10 === 0) {
     console.log('  ' + added + '局面 / ' + job.ply + '手目 / 待ち' + queue.length +
       ' / ' + Math.round((Date.now() - t0) / 1000) + '秒 / 深さ' + r.depth +
       ' 評価' + Math.round(keep[0].score) + (stratMove ? ' ←戦法どおり' : ''));
