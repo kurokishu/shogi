@@ -1,0 +1,1 @@
+(function(root){var BOOK_KUROTAKI78={"version":1,"built":"","strategy":"kurotaki78","positions":0,"entries":{}};if(typeof module==="object"&&module.exports)module.exports=BOOK_KUROTAKI78;else root.BOOK_KUROTAKI78=BOOK_KUROTAKI78;})(typeof self!=="undefined"?self:this);
